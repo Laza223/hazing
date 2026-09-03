@@ -1,0 +1,43 @@
+{
+  "startupCommands": [],
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Bash(pnpm *)",
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Write(./docs/**)",
+      "Write(./CLAUDE.md)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./**/.env)",
+      "Read(./**/.env.*)",
+      "Read(./secrets/**)",
+
+      "Bash(pnpm db:push)",
+      "Bash(pnpm run db:push)",
+      "Bash(prisma migrate deploy:*)",
+      "Bash(npx prisma migrate deploy:*)",
+      "Bash(prisma db push:*)",
+      "Bash(npx prisma db push:*)",
+      "Bash(wrangler:*)",
+      "Bash(npx wrangler:*)",
+      "Bash(pnpm dlx wrangler:*)",
+
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push origin main:*)",
+      "Bash(rm -rf *)",
+      "Bash(rm -rf:*)",
+
+      "Edit(./scripts/audit-verify.sh)",
+      "Write(./scripts/audit-verify.sh)"
+    ],
+    "ask": ["Bash(git push:*)", "Bash(git commit:*)"]
+  }
+}
