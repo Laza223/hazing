@@ -23,6 +23,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Prisma generate
+        run: pnpm db:generate
+
       - name: Format check
         run: pnpm format:check
 

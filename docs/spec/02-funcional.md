@@ -6,7 +6,7 @@ Fuente: [`00-handoff.md`](00-handoff.md) §1, §2, §3. Entidades y flujos se de
 
 `Category` (jerárquica, 2 niveles) · `Product` (+ `sizeSystem`, ver [ADR 0001](../decisions/0001-esquema-talles.md)) · `ProductVariant` (talle + color, no tono) · `Customer` · `Address` · `Review` · `Cart` / `CartItem` · `Order` / `OrderItem` · `Payment` · `ShippingZone` (única fuente de costo de envío, no fallback) · `Shipment` (transiciones manuales, no webhook de courier) · `Coupon` / `CouponRedemption` · `User` (staff) · `Setting` · `RetractionRequest`.
 
-`Combo`/`ComboItem`: en glamify existen; para Hazing es REQUIRE INPUT en Fase 3 (¿la dueña vende combos de ropa? no está en el handoff).
+`Combo`/`ComboItem`: en glamify existen. **Decisión de Lazar (2026-09-03): sin combos por ahora.** No se modelan en Fase 3 — si se necesitan más adelante, se agregan con su propia migración.
 
 ## State machines (heredadas tal cual)
 

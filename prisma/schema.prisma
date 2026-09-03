@@ -1,0 +1,461 @@
+// Schema Prisma de Hazing — partido del de glamify-makeup (ver docs/spec/03-tecnica.md
+// "Mapa de módulos"). Deltas respecto de glamify, todos documentados en
+// docs/spec/00-handoff.md §2 y en los ADRs referenciados inline:
+//   1. Sin Combo/ComboItem — decisión de Lazar 2026-09-03 (docs/spec/02-funcional.md).
+//   2. Sin módulo de envío por API — ShippingZone es la ÚNICA fuente de costo (no
+//      fallback), Shipment sin campos de MiCorreo, sin weightGr en Product/Order (solo
+//      servía para cotización en vivo, que ya no existe).
+//   3. ProductVariant = talle + color (ver ADR 0001), no tono.
+//
+// SIN APLICAR TODAVÍA: no existe el proyecto Supabase de la dueña (ver SETUP.md §2),
+// así que no hay migración generada. `prisma migrate dev` corre recién cuando
+// DATABASE_URL/DIRECT_URL apunten a una DB real.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============ ENUMS (inglés británico: cancelled) ============
+enum OrderStatus {
+  pending_payment
+  paid
+  preparing
+  shipped
+  delivered
+  cancelled
+  refunded
+}
+
+enum PaymentStatus {
+  pending
+  approved
+  rejected
+  in_process
+  refunded
+  cancelled
+}
+
+enum PaymentProvider {
+  mercadopago
+}
+
+enum ShipmentStatus {
+  pending
+  ready
+  dispatched
+  in_transit
+  delivered
+  returned
+}
+
+enum ShippingMethod {
+  domicilio
+  sucursal
+}
+
+enum ShippingZoneMatchType {
+  province
+  cpRange
+}
+
+enum CartStatus {
+  active
+  ordered
+  abandoned
+}
+
+enum CouponType {
+  percentage
+  fixed
+  free_shipping
+}
+
+enum CouponScope {
+  all
+  category
+  product
+}
+
+enum UserRole {
+  owner
+  admin
+}
+
+enum ReviewStatus {
+  pending
+  approved
+  rejected
+}
+
+enum RetractionStatus {
+  pending
+  processed
+  rejected
+}
+
+/// Sistema de talles del producto — ver docs/decisions/0001-esquema-talles.md.
+/// Elegido por producto, no por categoría. Las escalas concretas viven en código
+/// (src/lib/catalog/sizes.ts, Fase 4), no en la DB.
+enum SizeSystem {
+  letters
+  numeric
+  one_size
+}
+
+// ============ CATÁLOGO ============
+model Category {
+  id           String            @id @default(uuid()) @db.Uuid
+  slug         String            @unique
+  name         String
+  parentId     String?           @db.Uuid
+  parent       Category?         @relation("CategoryToChildren", fields: [parentId], references: [id], onDelete: SetNull)
+  children     Category[]        @relation("CategoryToChildren")
+  skuPrefix    String            @db.VarChar(3)
+  image        String?
+  order        Int               @default(0)
+  active       Boolean           @default(true)
+  /**
+   * Si es false, no aparece en el menú principal ni en "Comprar por categoría" del home,
+   * pero sigue siendo una ruta /tienda/[categoria] válida y aparece en el sitemap.
+   */
+  showInMenu   Boolean           @default(true)
+  products     Product[]
+  productLinks ProductCategory[] @relation("ProductCategoryLinks")
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+}
+
+model Product {
+  id             String            @id @default(uuid()) @db.Uuid
+  slug           String            @unique
+  name           String
+  description    String?
+  categoryId     String            @db.Uuid
+  category       Category          @relation(fields: [categoryId], references: [id])
+  /**
+   * Categorías adicionales (además de la primaria de arriba) — un producto puede vivir en varias
+   * categorías a la vez sin duplicarse. La primaria sigue siendo la única fuente del prefijo de SKU.
+   */
+  categories     ProductCategory[]
+  /// Ver docs/decisions/0001-esquema-talles.md — decide contra qué escala se valida
+  /// el `size` de cada variante de este producto.
+  sizeSystem     SizeSystem        @default(letters)
+  basePrice      Decimal           @db.Decimal(12, 2)
+  compareAtPrice Decimal?          @db.Decimal(12, 2) // precio "antes" (oferta). Setear SOLO si > basePrice.
+  cost           Decimal           @db.Decimal(12, 2)
+  images         String[]
+  isFeatured     Boolean           @default(false)
+  heroRank       Int?
+  tags           String[]
+  seoTitle       String?
+  seoDescription String?
+  active         Boolean           @default(true)
+  variants       ProductVariant[]
+  reviews        Review[]
+  wishlistedBy   Wishlist[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  deletedAt      DateTime?
+
+  @@index([categoryId])
+}
+
+/**
+ * Categorías adicionales de un producto (la primaria vive en Product.categoryId). Tabla de
+ * asociación pura, sin historia que preservar: se rehace entera en cada edición del producto.
+ */
+model ProductCategory {
+  productId  String   @db.Uuid
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  categoryId String   @db.Uuid
+  category   Category @relation("ProductCategoryLinks", fields: [categoryId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@id([productId, categoryId])
+  @@index([categoryId])
+}
+
+model ProductVariant {
+  id                String      @id @default(uuid()) @db.Uuid
+  productId         String      @db.Uuid
+  product           Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  /// Derivado en el servicio como "{size} · {color}" (ADR 0001) — no lo tipea la dueña a mano.
+  name              String
+  /// Validado en src/lib/admin/products/validation.ts contra la escala de `Product.sizeSystem`.
+  size              String
+  color             String
+  swatchHex         String? // color del swatch (#RRGGBB); null → usar image
+  sku               String      @unique
+  priceOverride     Decimal?    @db.Decimal(12, 2)
+  stock             Int         @default(0)
+  lowStockThreshold Int         @default(3)
+  image             String?
+  active            Boolean     @default(true)
+  order             Int         @default(0)
+  cartItems         CartItem[]
+  orderItems        OrderItem[]
+
+  @@unique([productId, size, color])
+  @@index([productId])
+}
+
+// ============ CLIENTAS ============
+model Customer {
+  id               String             @id @db.Uuid // = uid de Supabase Auth
+  email            String             @unique
+  name             String?
+  phone            String?
+  marketingConsent Boolean            @default(false)
+  redemptions      CouponRedemption[]
+  addresses        Address[]
+  wishlist         Wishlist[]
+  reviews          Review[]
+  carts            Cart[]
+  orders           Order[]
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+}
+
+model Address {
+  id            String   @id @default(uuid()) @db.Uuid
+  customerId    String   @db.Uuid
+  customer      Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  recipientName String
+  phone         String
+  street        String
+  number        String
+  floorApt      String?
+  city          String
+  province      String
+  postalCode    String
+  notes         String?
+  isDefault     Boolean  @default(false)
+
+  @@index([customerId])
+  @@index([postalCode])
+}
+
+model Wishlist {
+  customerId String   @db.Uuid
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  productId  String   @db.Uuid
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@id([customerId, productId])
+}
+
+model Review {
+  id               String       @id @default(uuid()) @db.Uuid
+  productId        String       @db.Uuid
+  product          Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customerId       String?      @db.Uuid
+  customer         Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  authorName       String
+  rating           Int
+  title            String?
+  body             String
+  photoUrl         String?
+  verifiedPurchase Boolean      @default(false)
+  status           ReviewStatus @default(pending)
+  createdAt        DateTime     @default(now())
+
+  @@unique([customerId, productId])
+  @@index([productId])
+}
+
+// ============ VENTAS ============
+model Cart {
+  id                   String     @id @default(uuid()) @db.Uuid
+  customerId           String?    @db.Uuid
+  customer             Customer?  @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  sessionId            String?
+  status               CartStatus @default(active)
+  contactEmail         String?
+  contactPhone         String?
+  recoveryEmailConsent Boolean    @default(false)
+  abandonedEmailSentAt DateTime?
+  items                CartItem[]
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+
+  @@index([sessionId])
+}
+
+model CartItem {
+  id                String         @id @default(uuid()) @db.Uuid
+  cartId            String         @db.Uuid
+  cart              Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variantId         String         @db.Uuid
+  variant           ProductVariant @relation(fields: [variantId], references: [id])
+  qty               Int
+  unitPriceSnapshot Decimal        @db.Decimal(12, 2)
+
+  @@index([cartId])
+}
+
+model Order {
+  id              String         @id @default(uuid()) @db.Uuid
+  orderNumber     String         @unique
+  customerId      String?        @db.Uuid
+  customer        Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  contactName     String
+  contactEmail    String
+  contactPhone    String
+  shippingAddress Json
+  shippingMethod  ShippingMethod
+  shippingZoneId  String?        @db.Uuid
+  shippingZone    ShippingZone?  @relation(fields: [shippingZoneId], references: [id])
+  subtotal        Decimal        @db.Decimal(12, 2)
+  shippingCost    Decimal        @db.Decimal(12, 2)
+  discountTotal   Decimal        @default(0) @db.Decimal(12, 2)
+  total           Decimal        @db.Decimal(12, 2)
+  couponId        String?        @db.Uuid
+  coupon          Coupon?        @relation(fields: [couponId], references: [id])
+  status          OrderStatus    @default(pending_payment)
+  items           OrderItem[]
+  payments        Payment[]
+  shipment        Shipment?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([customerId])
+  @@index([status])
+}
+
+model OrderItem {
+  id                  String          @id @default(uuid()) @db.Uuid
+  orderId             String          @db.Uuid
+  order               Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variantId           String?         @db.Uuid
+  variant             ProductVariant? @relation(fields: [variantId], references: [id])
+  productNameSnapshot String
+  variantNameSnapshot String?
+  skuSnapshot         String?
+  unitPriceSnapshot   Decimal         @db.Decimal(12, 2)
+  qty                 Int
+  lineTotal           Decimal         @db.Decimal(12, 2)
+
+  @@index([orderId])
+}
+
+model Payment {
+  id             String          @id @default(uuid()) @db.Uuid
+  orderId        String          @db.Uuid
+  order          Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider       PaymentProvider @default(mercadopago)
+  mpPreferenceId String?
+  mpPaymentId    String?         @unique
+  status         PaymentStatus   @default(pending)
+  amount         Decimal         @db.Decimal(12, 2)
+  rawPayload     Json?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([orderId])
+}
+
+// ============ ENVÍOS — manual, sin API (docs/spec/00-handoff.md §2.2) ============
+/// Única fuente de costo de envío (no fallback como en glamify): costo fijo por
+/// zona/CP, configurado a mano por la dueña en el admin.
+model ShippingZone {
+  id        String                @id @default(uuid()) @db.Uuid
+  name      String
+  matchType ShippingZoneMatchType
+  provinces String[]
+  cpFrom    String?
+  cpTo      String?
+  price     Decimal               @db.Decimal(12, 2)
+  active    Boolean               @default(true)
+  order     Int                   @default(0)
+  orders    Order[]
+}
+
+/// Transiciones de `status` las dispara la dueña a mano desde el panel
+/// ("marcar despachado" + tracking freeform) — no hay webhook de courier.
+/// `carrier` es texto libre (Correo Argentino / Mercado Envíos / lo que elija al
+/// momento de despachar, fuera del sistema) — no un enum fijo ni una API.
+model Shipment {
+  id             String         @id @default(uuid()) @db.Uuid
+  orderId        String         @unique @db.Uuid
+  order          Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  carrier        String?
+  trackingNumber String?
+  status         ShipmentStatus @default(pending)
+  cost           Decimal        @db.Decimal(12, 2)
+  createdAt      DateTime       @default(now())
+}
+
+// ============ PROMOS ============
+model Coupon {
+  id               String             @id @default(uuid()) @db.Uuid
+  code             String             @unique
+  type             CouponType
+  value            Decimal            @db.Decimal(12, 2)
+  scope            CouponScope        @default(all)
+  scopeId          String?            @db.Uuid // categoryId o productId según `scope` (null si scope=all)
+  minSubtotal      Decimal?           @db.Decimal(12, 2)
+  maxUses          Int?
+  usedCount        Int                @default(0)
+  perCustomerLimit Int?
+  validFrom        DateTime?
+  validTo          DateTime?
+  active           Boolean            @default(true)
+  orders           Order[]
+  redemptions      CouponRedemption[]
+}
+
+model CouponRedemption {
+  customerId     String    @db.Uuid
+  customer       Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  couponId       String    @db.Uuid
+  coupon         Coupon    @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  redeemedCount  Int       @default(0)
+  lastRedeemedAt DateTime?
+
+  @@id([customerId, couponId])
+  @@index([couponId])
+}
+
+// ============ SISTEMA ============
+model User {
+  id        String   @id @db.Uuid // = uid de Supabase Auth
+  email     String   @unique
+  role      UserRole @default(admin)
+  createdAt DateTime @default(now())
+}
+
+model Setting {
+  id                    String   @id @default("default")
+  storeName             String   @default("Hazing")
+  /// Umbral de envío gratis — sin default hasta que la dueña lo defina
+  /// (docs/spec/01-negocio.md, decisión pendiente #9). null = sin envío gratis activo.
+  freeShippingThreshold Decimal? @db.Decimal(12, 2)
+  originPostalCode      String   @default("6700")
+  whatsappNumber        String?
+  instagramUrl          String?
+  tiktokUrl             String?
+  updatedAt             DateTime @updatedAt
+}
+
+// Solicitudes del Botón de Arrepentimiento (Res. 424/2020, art. 34 Ley 24.240).
+model RetractionRequest {
+  id           String           @id @default(uuid()) @db.Uuid
+  seq          Int              @unique @default(autoincrement()) // constancia: ARR-000123
+  orderNumber  String?
+  contactName  String
+  contactEmail String
+  contactPhone String?
+  reason       String?
+  status       RetractionStatus @default(pending)
+  createdAt    DateTime         @default(now())
+
+  @@index([status])
+}
