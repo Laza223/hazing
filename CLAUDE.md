@@ -24,19 +24,19 @@ Resto:
 - `pnpm dev` — localhost:3000 · `pnpm dev:worker` / `preview:worker` — preview Wrangler en `:8771`
 - `pnpm build` / `build:worker` · `pnpm deploy` — `build:worker` + `wrangler deploy`
 - `pnpm test:watch` · `pnpm test:e2e` — Playwright E2E (`@axe-core/playwright` para a11y)
-- `pnpm db:migrate` — `prisma migrate dev` (a partir de Fase 3) · `pnpm db:push` · `pnpm db:studio` · `pnpm db:seed`
+- `pnpm db:migrate` — `prisma migrate dev` (sin aplicar todavía, ver Fase 3) · `pnpm db:push` · `pnpm db:studio` · `pnpm db:seed` (se agrega cuando haya seed real)
 - **CI:** GitHub Actions corre `quality` en cada push/PR a `main`. `deploy` se agrega en Fase 10.
-- **Guard de escritura en DB:** cuando exista (Fase 4, `prod-write-guard.ts` copiado de glamify), scripts mutadores exigen tipear el host por terminal interactiva.
+- **Guard de escritura en DB:** `scripts/prod-write-guard.ts` (copiado de glamify) — scripts mutadores exigen tipear el host por terminal interactiva.
 
 ## Stack
 
 - Next.js 15 (App Router) + React 19 + TypeScript strict · shadcn/ui + Tailwind CSS v3.4 · Vitest + Playwright
 - **Deploy:** Cloudflare Workers vía `@opennextjs/cloudflare` con `nodejs_compat` (NO Vercel).
 - **PostgreSQL vía Supabase** (Auth + Storage) · **Prisma ORM** con driver adapter (`@prisma/adapter-pg`) — ver [ADR 0002](docs/decisions/0002-prisma-en-workers.md) para por qué Prisma y no Drizzle (el default del stack propio) en este runtime.
-- **Conexión DB por-request:** en Workers un socket TCP no se comparte entre requests — `src/lib/prisma.ts` (Fase 4, copiado exacto de glamify) crea el cliente por-request vía `cache()` de React + `Proxy` perezoso.
-- **MercadoPago Checkout Pro** (Fase 8): pagos instantáneos, efectivo/offline excluido. Webhook valida firma HMAC + idempotencia por `mpPaymentId`.
-- **Envíos:** sin API (delta vs. glamify) — `ShippingZone` es la única fuente de costo, configurada a mano por la dueña. `ShipmentStatus` avanza a mano desde el admin ("marcar despachado" + tracking freeform).
-- **Resend:** email transaccional · **PostHog:** analítica · **Cron Triggers:** en `worker.ts` (Fase 4).
+- **Conexión DB por-request:** en Workers un socket TCP no se comparte entre requests — `src/lib/prisma.ts` (copiado exacto de glamify) crea el cliente por-request vía `cache()` de React + `Proxy` perezoso.
+- **MercadoPago Checkout Pro:** `src/lib/payments/*` + `src/lib/orders/checkout-service.ts`/`webhook-service.ts` listos como librería (pagos instantáneos, efectivo/offline excluido, webhook con firma HMAC + idempotencia por `mpPaymentId`). El Route Handler `/api/webhooks/mercadopago` y la UI de checkout se cablean en Fase 8.
+- **Envíos:** sin API (delta vs. glamify) — `src/lib/shipping/quote.ts` (módulo nuevo, no existe en glamify) cotiza SOLO contra `ShippingZone` activa por provincia/rango de CP; sin match, tira error explícito (no hay fallback). `ShipmentStatus` avanza a mano desde el admin ("marcar despachado" + tracking freeform, Fase 9).
+- **Resend:** email transaccional (`src/lib/email/*`, templates con branding Hazing sin rosa/emoji) · **PostHog:** analítica (pendiente, Fase 6+) · **Cron Triggers:** en `worker.ts` (abandoned cart + order expiry, wireados).
 
 ## Arquitectura del código
 
@@ -45,7 +45,7 @@ Patrón: **Next.js App Router + servicios desacoplados en `src/lib/*`**. La lóg
 - `src/app/(storefront)/*` — Storefront: home, `/tienda`, `/producto/[slug]`, `/carrito`, `/checkout`, `/cuenta`, `/ingresar`, `/arrepentimiento`, páginas legales/institucionales.
 - `src/app/admin/*` — Panel admin: `/admin/login`, `/admin/(panel)` (`/pedidos`, `/productos`, `/categorias`, `/cupones`, `/resenas`).
 - `src/app/api/*` — Route Handlers exclusivamente para webhooks (`/api/webhooks/mercadopago`), callbacks de auth, sitemap/robots.
-- `src/lib/*` — Dominios: `orders/`, `payments/`, `cart/`, `catalog/` (incluye `sizes.ts`, ver ADR 0001), `admin/`, `customer/`, `coupons/`, `reviews/`, `email/`, `prisma.ts`. **No existe `src/lib/shipping/*`** — Hazing no integra API de envío (delta vs. glamify).
+- `src/lib/*` — Dominios: `orders/`, `payments/`, `cart/`, `catalog/`, `admin/`, `coupons/`, `email/`, `supabase/`, `prisma.ts`, `cron/`. `shipping/quote.ts` es el único archivo de `shipping/` — cotiza por `ShippingZone`, sin adapter de courier (delta vs. glamify, que tiene un módulo `shipping/` entero de MiCorreo/Zipnova que Hazing no porta). `customer/` y `reviews/` todavía no existen — se agregan cuando haga falta esa funcionalidad (Fase 6/7).
 - **Guards y Auth:** Staff vía Supabase Auth → tabla `User` (`role = 'owner' | 'admin'`), `requireAdmin()` en layouts y Server Actions. Clientas vía Supabase Auth (email) → `Customer`. Compras de invitadas guardan contacto/dirección en `Order`.
 
 ## Invariantes de dominio
@@ -90,10 +90,10 @@ Fase 5 implementa esto como tokens de Tailwind — hasta entonces el esqueleto u
 
 ## Seguridad y Permisos
 
-- **Admin:** `requireAdmin()` chequea sesión Supabase Auth + rol `owner`/`admin` en tabla `User` (Fase 4).
-- **MP Webhook:** valida firma HMAC en `x-signature`, re-consulta a la API de MP, procesa idempotentemente por `mpPaymentId` (Fase 8).
+- **Admin:** `requireAdmin()` (`src/lib/admin/auth.ts`) chequea sesión Supabase Auth + rol `owner`/`admin` en tabla `User`.
+- **MP Webhook:** `src/lib/orders/webhook-service.ts` valida firma HMAC en `x-signature`, re-consulta a la API de MP, procesa idempotentemente por `mpPaymentId`. El Route Handler que lo expone se cablea en Fase 8.
 - **Secretos:** solo en Cloudflare Secrets (`wrangler secret put`) y `.env.local`. NUNCA en git ni en cliente.
-- **Guard de mutación:** `scripts/prod-write-guard.ts` (Fase 4) intercepta scripts locales para confirmar host de Supabase por terminal.
+- **Guard de mutación:** `scripts/prod-write-guard.ts` intercepta scripts locales para confirmar host de Supabase por terminal.
 
 ## Skill routing
 

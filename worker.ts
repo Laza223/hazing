@@ -1,10 +1,29 @@
-// Worker entry: re-exporta el handler de @opennextjs/cloudflare.
-// `scheduled` (cron triggers para carrito abandonado + expiry de pedidos) se agrega en Fase 4,
-// junto con los módulos de cart/orders (patrón calcado de glamify-makeup/worker.ts).
+// Worker entry custom: re-exporta el handler de @opennextjs/cloudflare y agrega `scheduled`
+// para los Cron Triggers (carrito abandonado + autocancelación de pedidos). Patrón calcado de
+// glamify-makeup/worker.ts.
 // El artefacto .open-next/worker.js se genera con `pnpm build:worker` (no existe en dev de Next).
 // @ts-ignore - generado en build
 import openNextHandler from "./.open-next/worker.js";
+import { buildCronDeps, type CronEnv } from "./src/lib/cron/deps";
+import { runAbandonedCartJob } from "./src/lib/cart/abandoned-job";
+import { runOrderExpiryJob } from "./src/lib/orders/expiry-job";
 
 export default {
   fetch: (openNextHandler as { fetch: ExportedHandlerFetchHandler }).fetch,
-} satisfies ExportedHandler;
+  async scheduled(
+    _controller: ScheduledController,
+    env: CronEnv,
+    ctx: ExecutionContext,
+  ) {
+    const deps = buildCronDeps(env);
+    ctx.waitUntil(
+      Promise.allSettled([
+        runAbandonedCartJob(deps.abandoned),
+        runOrderExpiryJob(deps.expiry),
+      ]).then((results) => {
+        for (const r of results)
+          if (r.status === "rejected") console.error("[cron]", r.reason);
+      }),
+    );
+  },
+} satisfies ExportedHandler<CronEnv>;

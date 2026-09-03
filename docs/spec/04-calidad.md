@@ -28,10 +28,10 @@ WCAG AA — heredado de glamify, con requisitos adicionales del design brief mon
 
 ## Testing
 
-- **Unit (Vitest):** lógica pura en `src/lib/*` — pricing, validación de talles/variantes, totales de carrito, formato ARS.
-- **Integración (Vitest + DB real):** servicios que tocan Prisma — se agregan a partir de Fase 3/4.
+- **Unit (Vitest):** lógica pura en `src/lib/*` — pricing, validación de talles/variantes, totales de carrito, formato ARS, cotización de envío.
+- **Integración (Vitest, `tests/integration/`):** servicios con múltiples colaboradores (checkout, webhook de MP, merge/cart-service) — con DB **fakeada** vía `vi.fn()`/objetos en memoria, no una Postgres real (mismo patrón que `glamify-makeup`, que tampoco levanta DB en CI). Cubre idempotencia, guardas atómicas y que los ítems mandados a MercadoPago sumen exacto el total. Tests contra Postgres real (si hacen falta) son un gate aparte, no cubierto todavía.
 - **E2E (Playwright):** flujos completos (catálogo → checkout, admin CRUD, cuenta) — se agregan a partir de Fase 6/7, siguiendo el patrón de `glamify/tests/e2e/*`.
 
 ## Legal (Argentina)
 
-Botón de Arrepentimiento (Res. 424/2020, Art. 34 Ley 24.240) con constancia `ARR-NNNNNN` — cubierto por test de integración heredado del patrón de glamify (`tests/integration/legal/retraction-service.test.ts`). Ley 25.326 de protección de datos personales — sin tracking de terceros sin consentimiento (mismo patrón opt-out que PostHog en glamify).
+Botón de Arrepentimiento (Res. 424/2020, Art. 34 Ley 24.240) con constancia `ARR-NNNNNN` — módulo `src/lib/legal/retraction/*` todavía no portado (fuera del alcance de Fase 4; se agrega junto a su test de integración, siguiendo el patrón de glamify `tests/integration/legal/retraction-service.test.ts`). Ley 25.326 de protección de datos personales — sin tracking de terceros sin consentimiento (mismo patrón opt-out que PostHog en glamify).

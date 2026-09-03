@@ -4,6 +4,9 @@
   "main": "worker.ts",
   "compatibility_date": "2024-12-30",
   "compatibility_flags": ["nodejs_compat"],
+  "triggers": {
+    "crons": ["0 * * * *"],
+  },
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS",
