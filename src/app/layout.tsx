@@ -8,9 +8,14 @@ const inter = Inter({
   display: "swap",
 });
 
+// Variable (no pesos fijos) para habilitar el eje de ancho `wdth` — Display XL
+// del brief usa wdth 100-112 (docs/spec/05-direccion-arte.md §3.1). Confirmado
+// por spike (docs/decisions/0003-motion-y-3d.md): `weight` fijo + `axes` no
+// compila en next/font — hay que declarar `weight: "variable"`.
 const archivo = Archivo({
   subsets: ["latin"],
-  weight: ["700", "900"],
+  weight: "variable",
+  axes: ["wdth"],
   variable: "--font-display",
   display: "swap",
 });

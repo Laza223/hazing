@@ -2,34 +2,78 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Paleta neutral provisoria (Tailwind `neutral` en HSL) — placeholder hasta Fase 5,
-   que implementa la escala exacta de docs/spec/00-handoff.md §8.3 (ink #171717, etc). */
+/* Tokens de dirección de arte — ver docs/spec/05-direccion-arte.md §3.1 y §8.
+   Las variables --dur- y --ease- de abajo son la fuente de verdad que
+   src/lib/motion/tokens.ts espeja para GSAP: si se cambia acá, cambiar
+   también ahí (comentario cruzado en ese archivo). Los hsl(var(--x)) de
+   shadcn/Radix (admin, Fase 7) quedan mapeados a la MISMA escala de
+   grises — no es una paleta aparte. */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
-    --destructive: 0 0% 9%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 83%;
-    --input: 0 0% 83%;
-    --ring: 0 0% 9%;
-    --radius: 0.25rem;
+    --background: 0 0% 100%; /* paper */
+    --foreground: 0 0% 9%; /* ink */
+    --card: 0 0% 100%; /* paper */
+    --card-foreground: 0 0% 9%; /* ink */
+    --primary: 0 0% 9%; /* ink */
+    --primary-foreground: 0 0% 100%; /* paper */
+    --secondary: 0 0% 98%; /* paper-2 */
+    --secondary-foreground: 0 0% 9%; /* ink */
+    --muted: 0 0% 93%; /* line-2 */
+    --muted-foreground: 0 0% 45%; /* ink-4 */
+    /* Sin rojo: los estados de error/destructivo se comunican con forma +
+       texto (WCAG 1.4.1), nunca con color — ver docs/spec/00-handoff.md §8.6. */
+    --destructive: 0 0% 9%; /* ink */
+    --destructive-foreground: 0 0% 100%; /* paper */
+    --border: 0 0% 83%; /* line */
+    --input: 0 0% 83%; /* line */
+    --ring: 0 0% 9%; /* ink */
+    --radius: 2px;
+
+    /* Motion — docs/spec/05-direccion-arte.md §8 */
+    --dur-micro: 150ms;
+    --dur-ui: 250ms;
+    --dur-overlay: 450ms;
+    --dur-image: 700ms;
+    --dur-cinema: 1200ms;
+    --ease-ui: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-cinema: cubic-bezier(0.65, 0, 0.35, 1);
   }
 }
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-line;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-paper text-ink;
+  }
+}
+
+@layer utilities {
+  /* Tracking en mayúsculas por tamaño — §3.1: ≤16px 0.12em · 17-40px 0.06em · >40px 0.02em.
+     Mayúsculas sin tracking son el tell más barato de un theme genérico. */
+  .tracking-caps-sm {
+    letter-spacing: 0.12em;
+  }
+  .tracking-caps-md {
+    letter-spacing: 0.06em;
+  }
+  .tracking-caps-lg {
+    letter-spacing: 0.02em;
+  }
+}
+
+/* prefers-reduced-motion es de primera clase (§8, §11), no una excepción:
+   todo transform/scale ligado a scroll o entrada se reemplaza por opacity-only
+   o instantáneo. GSAP aplica la misma regla vía matchMedia en src/lib/motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
