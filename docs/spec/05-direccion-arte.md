@@ -2,7 +2,7 @@
 
 Fuente: brief de Lazar del 2026-09-03 ("Fase 5 — Digital flagship / Art direction"), que **redefine el objetivo de la fase**. Este documento reemplaza al §8 del handoff como fuente de verdad visual donde lo contradice; donde no lo contradice, el §8 sigue valiendo (escala de grises, radios, ratios, estados sin color, anti-patrones). Las decisiones de stack están en [ADR 0003](../decisions/0003-motion-y-3d.md).
 
-Estado: **propuesta en lectura** — Lazar tomó las decisiones 1–4 de §14 el 2026-09-03 (momento 3D "La etiqueta", sin assets de campaña todavía → 5.2 contra slots, se mantiene "Carrito"/`/carrito`) y pidió leer el documento completo antes de arrancar 5.1. No se implementa nada hasta esa lectura.
+Estado: **implementado** — las cuatro sub-fases (5.1, 5.3, 5.2, 5.4) están cerradas y commiteadas al 2026-09-04, cada una con revisión adversarial de contexto fresco y sus bloqueantes corregidos. Lo que falta para que la home se vea como pide este documento no es código: son los assets de campaña del §12 (A2/A2b/A3/A4), que hoy se sirven como slots. Las mediciones reales están en §13.1.
 
 ## 1. Brief, en una línea
 
@@ -230,12 +230,30 @@ Orden pensado para no depender de assets al principio y atacar primero el riesgo
 | Sub-fase | Contenido | Depende de | Presupuesto |
 |---|---|---|---|
 | **5.1 Fundaciones** ✅ cerrada 2026-09-04 | Tokens (`globals.css`, `tailwind.config.ts`), Archivo variable, `src/lib/motion/*`, `Header`, `FullscreenMenu` (con slots de preview), `Footer`, `BrandEntrance`, `Button`, `TextInput`, `SizeSelector`, `Swatch`, `PriceLine`, `StockLine`, `ProductTile` (con slot), `Wordmark` (SVG inline). Tests unitarios de tokens, E2E de shell + axe + regresión de foco. Commits `97443c8` (fundaciones) + `865a5f4` (shell). Cerrada con revisión adversarial (1 bloqueante de accesibilidad encontrado y corregido) + gate de release GO. | A1 (trazado automático alcanza) | 26 archivos, ~1150 líneas |
-| **5.3 Momento inmersivo** | `src/components/immersive/*`: escena, guion de scroll, carga lazy, fallback still, pipeline para exportar el still. Se hace antes que la home porque es el mayor riesgo y no depende de fotos. | 5.1, A6, A7 | ~8 archivos |
-| **5.2 Home** | `Hero` (film/still + poster), `HeroToCommerce` (Flip), `NewIn`, `Lookbook`, `EditorialStory`, script de pre-codificación de imágenes. Se construye contra slots; se cierra con A2/A3. | 5.1, A2b/A3 | ~12 archivos |
-| **5.4 Performance y mobile** | Lighthouse en `preview:worker` (móvil), presupuesto de bundles verificado, pasada de coreografía mobile, axe completo. | 5.1–5.3 | ajustes |
+| **5.3 Momento inmersivo** ✅ cerrada 2026-09-04 | `src/components/immersive/*`: escena R3F con geometría procedural, guion de scroll, carga lazy con `next/dynamic(ssr:false)`, still de fallback servido desde el HTML del servidor y error boundary. Commit `66932a2`. Tres bloqueantes corregidos (three en el bundle de servidor, sección vacía en SSR, sin error boundary). | 5.1, A6, A7 | 19 archivos |
+| **5.2 Home** ✅ cerrada 2026-09-04 | `Hero`, `HeroToCommerce` (Flip real con scrub), `NewIn`, `Lookbook`, `EditorialStory`, script de pre-codificación. Construida contra slots; se cierra visualmente con A2b/A3. Commit `24164b4`. Seis bloqueantes corregidos (header sin blend sobre el hero, cortina invertida, Flip sin scrub, home sin h1, Modo A muerto, sin test mobile). | 5.1, A2b/A3 | 14 archivos |
+| **5.4 Performance y mobile** ✅ cerrada 2026-09-04 | Medición real con Playwright + CPU 4x (no Lighthouse: `preview:worker` sigue bloqueado en Windows, ver §14.9), axe en 8 estados, recorrido por teclado, targets táctiles, reduced motion. Commit `8965ad8`. Siete bloqueantes corregidos, incluido un crash de React reproducible. Números medidos en §13.1. | 5.1–5.3 | 14 archivos |
 | PDP | Se implementa en Fase 6 con datos reales, siguiendo §7. | Fase 6 | — |
 
 Cada sub-fase cierra con: juez del repo en verde (`format:check`, `lint`, `typecheck`, `test`), `pnpm build:worker` sin three/lenis en el worker, flujo corrido en el navegador por un verificador de UX con contexto fresco, revisión adversarial del diff y gate de release. Sin los cuatro no está cerrada.
+
+### 13.1 Mediciones reales (2026-09-04, build de producción)
+
+Medidas con Playwright sobre `pnpm build` + `pnpm start`, no estimadas. Mobile = viewport 375×812 con CPU throttling 4×.
+
+| Métrica | Presupuesto | Medido | Nota |
+|---|---|---|---|
+| LCP (mobile) | ≤ 2500 ms | 230 ms (mediana de 6) | El elemento LCP es hoy el texto del slot del hero, no el poster: hay que re-medir cuando exista A2b. |
+| CLS | ≤ 0.1 | 0.0006 | Un solo desplazamiento, del cambio de fuente al cargar. |
+| Tareas largas > 200 ms (scroll completo) | 0 | 0 (máx 141 ms) | Antes de 5.4: 5 tareas, máx 597 ms. |
+| JS inicial de `/` | ≤ 220 KB gz | 173 kB | Cerca del 9 % de margen: vigilar cuando Fase 6 traiga datos reales. |
+| Chunk 3D (lazy) | ≤ 450 KB gz | 252 KB gz | No se pide a la red hasta acercarse a la sección. |
+| three.js en el bundle del servidor | 0 | 0 | Es el gate de CI del ADR 0003. |
+| Targets táctiles < 44 px (mobile) | 0 | 0 | Antes de 5.4: 25. |
+| Entrada de marca | ≤ 700 ms | 683 ms | Antes de 5.4: 822-839 ms. |
+| Violaciones de axe | 0 | 0 en 8 estados | Desktop, mobile, menú abierto, reduced motion, sección 3D y lookbook. |
+
+Lo que NO se pudo medir localmente: Lighthouse sobre `preview:worker` (el build del worker sigue bloqueado en Windows, §14.9) e INP real, que necesita interacción de una persona. Como proxy de INP se usó la duración de las tareas largas, que es lo que recomienda la documentación de Web Vitals.
 
 ## 14. Decisiones de Lazar / la dueña
 
@@ -250,6 +268,18 @@ Tomadas el 2026-09-03/04:
 7. **Contacto (A8):** confirmado — Instagram `hazing.ok`, WhatsApp `+54 9 2323 52-9931`.
 8. **Sección invertida (fondo `ink`) solo para el momento 3D:** aprobada junto con "La etiqueta".
 9. **Build del worker en local:** sigue bloqueado por el symlink de Windows (no es Docker — es un permiso del sistema operativo para crear enlaces simbólicos, que pide `next build` en modo standalone). No se activa desde acá (cambiar configuración del sistema es una acción que le corresponde a Lazar, no a este asistente). El gate del worker se mide en CI (Linux) desde esta sub-fase — ver `.github/workflows/ci.yml`.
+
+### 14.1 Lo que sigue abierto al cerrar la Fase 5 (2026-09-04)
+
+Ninguno bloquea el código; todos bloquean que la home se vea como la describe este documento.
+
+1. **Assets de campaña (A2, A2b, A3, A4).** Es lo único que separa la home actual de la home del brief: hoy cada sección muestra su slot con el código y las medidas exactas. La tabla del §12 es lo que hay que pasarle al fotógrafo. Sin A3 no hay lookbook ni editorial reales.
+2. **Vector original del wordmark.** El trazado automático sirve para pantalla; para impresión y para el mejor detalle del momento 3D conviene el original del diseñador.
+3. **Copy definitivo (A7).** El statement y el texto de marca del menú son borradores de este equipo, en `src/lib/content/copy.ts`.
+4. **`sharp` como dependencia de desarrollo.** El script de pre-codificación de imágenes (`scripts/encode-images.mjs`, §10) está escrito pero no puede correr sin él. Agregarlo toca `package.json`, que necesita tu OK.
+5. **Newsletter del footer (beat 8).** Declarado en el §4 y no implementado: no hay backend de lista de correo todavía (llega con Resend).
+6. **Favicon y Open Graph.** El §12 los lista como uso del asset A1 y no existen todavía.
+7. **Lighthouse sobre el worker.** Ver §14.9: hoy se mide con Playwright sobre el build de Next, no sobre el Worker.
 
 ## 15. Ledger de delegaciones de esta fase
 
