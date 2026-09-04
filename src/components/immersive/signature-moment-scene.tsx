@@ -77,7 +77,15 @@ function pick<T extends readonly (keyof SceneState)[]>(
   return result;
 }
 
-export default function SignatureMomentScene(): React.JSX.Element {
+export interface SignatureMomentSceneProps {
+  /** Con `false` el frameloop queda en "never": la escena sigue montada pero no
+   *  renderiza (cero trabajo de GPU fuera de pantalla). Ver signature-moment.tsx. */
+  active?: boolean;
+}
+
+export default function SignatureMomentScene({
+  active = true,
+}: SignatureMomentSceneProps): React.JSX.Element {
   const sectionRef = useRef<HTMLElement>(null);
   const labelRef = useRef<HTMLParagraphElement>(null);
   const dorsoOverlayRef = useRef<HTMLParagraphElement>(null);
@@ -230,6 +238,7 @@ export default function SignatureMomentScene(): React.JSX.Element {
       className="relative min-h-[100svh] overflow-hidden bg-ink text-paper"
     >
       <Canvas
+        frameloop={active ? "always" : "never"}
         dpr={isDesktop ? [1, 1.5] : [1, 1]}
         shadows={isDesktop}
         gl={{ alpha: true }}

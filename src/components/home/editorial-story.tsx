@@ -197,7 +197,7 @@ export function EditorialStory({ looks, className }: EditorialStoryProps) {
               <Link
                 href={look.lookHref}
                 data-reveal-item
-                className="w-fit text-sm text-ink-2 underline underline-offset-4 outline-none transition-colors duration-ui ease-ui hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                className="inline-flex min-h-11 w-fit items-center text-sm text-ink-2 underline underline-offset-4 outline-none transition-colors duration-ui ease-ui hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
               >
                 {look.lookLabel ?? "Comprar el look"}
               </Link>

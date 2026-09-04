@@ -64,7 +64,7 @@ export function Header() {
           // Sin color propio: hereda el del header (ink normal, paper sobre el
           // hero). El outline de foco usa `outline-current` por lo mismo —
           // con `outline-ink` fijo sería invisible en el modo invertido.
-          className="flex items-center gap-2 outline-none transition-colors duration-ui ease-ui focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
+          className="flex min-h-11 items-center gap-2 outline-none transition-colors duration-ui ease-ui focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
         >
           <Menu className="h-5 w-5" aria-hidden="true" />
           <span className="tracking-caps-sm text-xs font-medium uppercase">
@@ -75,7 +75,7 @@ export function Header() {
         <Link
           href="/"
           aria-label="Hazing"
-          className="absolute left-1/2 -translate-x-1/2 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
+          className="absolute left-1/2 inline-flex min-h-11 -translate-x-1/2 items-center outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
         >
           {/* `text-current` pisa el `text-ink` por defecto del Wordmark para
               que herede el color del header (invertido sobre el hero). */}
@@ -84,7 +84,7 @@ export function Header() {
 
         <Link
           href="/carrito"
-          className="tracking-caps-sm text-xs font-medium uppercase outline-none transition-colors duration-ui ease-ui focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
+          className="tracking-caps-sm inline-flex min-h-11 items-center text-xs font-medium uppercase outline-none transition-colors duration-ui ease-ui focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
         >
           Carrito
         </Link>

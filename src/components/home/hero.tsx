@@ -287,7 +287,7 @@ export function Hero({
         </h1>
         <Link
           href={ctaHref}
-          className="tracking-caps-sm underline underline-offset-2 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-paper"
+          className="tracking-caps-sm inline-flex min-h-11 items-center underline underline-offset-2 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-paper"
         >
           Ver
         </Link>

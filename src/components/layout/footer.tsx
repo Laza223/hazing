@@ -32,8 +32,15 @@ const LEGAL_LINKS: FooterLink[] = [
   { label: "Privacidad", href: "/privacidad" },
 ];
 
+/**
+ * `inline-flex min-h-11` (44px): un link de texto de 12px mide ~16px de alto
+ * y queda por debajo del target táctil que exigen §11 y docs/spec/04-calidad.md.
+ * La medición de la sub-fase 5.4 encontró 25 elementos así en mobile — es una
+ * clase de problema (link de texto en mayúsculas sin padding), no casos
+ * sueltos, así que el arreglo va en la clase compartida.
+ */
 const linkClass =
-  "text-xs uppercase tracking-caps-sm text-ink-3 outline-none transition-colors duration-ui ease-ui hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+  "inline-flex min-h-11 items-center text-xs uppercase tracking-caps-sm text-ink-3 outline-none transition-colors duration-ui ease-ui hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
 /**
  * Footer — wordmark enorme en `ink`, tres columnas de texto 12px
@@ -54,7 +61,7 @@ export function Footer() {
           href={SOCIAL_INSTAGRAM_URL}
           target="_blank"
           rel="noreferrer noopener"
-          className="outline-none transition-colors duration-ui ease-ui hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="inline-flex min-h-11 items-center outline-none transition-colors duration-ui ease-ui hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           Instagram — @{SOCIAL_INSTAGRAM_HANDLE}
         </a>
@@ -62,7 +69,7 @@ export function Footer() {
           href={CONTACT_WHATSAPP_URL}
           target="_blank"
           rel="noreferrer noopener"
-          className="outline-none transition-colors duration-ui ease-ui hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="inline-flex min-h-11 items-center outline-none transition-colors duration-ui ease-ui hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           WhatsApp — {CONTACT_WHATSAPP_DISPLAY}
         </a>

@@ -25,7 +25,20 @@ export interface TagTextures {
   roughness: THREE.CanvasTexture;
 }
 
-const FACE_SIZE = 2048;
+/**
+ * Resolución de la cara de la etiqueta. El §6 pide 2048 px, pero generar dos
+ * caras de 2048² con Canvas2D es una tarea larga medible: en la medición de
+ * la sub-fase 5.4 (mobile con CPU 4x) el montaje de la escena aparecía como
+ * una tarea de ~600 ms, muy por encima del target de 200 ms del §10. En
+ * pantallas chicas la etiqueta nunca ocupa más de ~400 px de ancho real, así
+ * que 1024 px es indistinguible ahí y cuesta la cuarta parte.
+ */
+function faceSize(): number {
+  if (typeof window === undefined) return 2048;
+  return window.matchMedia("(min-width: 1024px) and (pointer: fine)").matches
+    ? 2048
+    : 1024;
+}
 const NOISE_SIZE = 256;
 
 // Tokens de la escala ink/paper/line de tailwind.config.ts — ver
@@ -233,11 +246,12 @@ export function useTagTextures(): TagTextures | null {
   const textures = useMemo<TagTextures | null>(() => {
     if (!fontsReady || typeof document === "undefined") return null;
 
-    const frontCanvas = createCanvas(FACE_SIZE);
+    const size = faceSize();
+    const frontCanvas = createCanvas(size);
     drawWordmarkFront(frontCanvas);
 
     const fontFamily = resolveDisplayFontFamily();
-    const backCanvas = createCanvas(FACE_SIZE);
+    const backCanvas = createCanvas(size);
     drawBack(backCanvas, fontFamily);
 
     const heightCanvas = createCanvas(NOISE_SIZE);

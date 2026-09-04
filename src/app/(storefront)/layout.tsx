@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { BrandEntrance } from "@/components/layout/brand-entrance";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
+import { MotionProvider } from "@/lib/motion/motion-provider";
 
 /**
  * Layout del storefront (grupo de ruta) — chrome de Header/Footer/BrandEntrance
@@ -15,11 +16,11 @@ export default function StorefrontLayout({
   children: ReactNode;
 }) {
   return (
-    <>
+    <MotionProvider>
       <BrandEntrance />
       <Header />
       <main>{children}</main>
       <Footer />
-    </>
+    </MotionProvider>
   );
 }

@@ -5,9 +5,9 @@ import Link from "next/link";
 import * as Dialog from "@radix-ui/react-dialog";
 import gsap from "gsap";
 
-import { cn } from "@/lib/utils";
 import { useReducedMotion } from "@/lib/motion/use-reduced-motion";
-import { EASE } from "@/lib/motion/tokens";
+import { DURATION, EASE } from "@/lib/motion/tokens";
+import { lineDraw } from "@/lib/motion/primitives";
 import {
   MENU_BRAND_BLURB,
   SOCIAL_INSTAGRAM_HANDLE,
@@ -43,7 +43,22 @@ export function FullscreenMenu({ open, onOpenChange }: FullscreenMenuProps) {
   const [mounted, setMounted] = useState(open);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const ruleRef = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
+
+  // `lineDraw` sobre la regla del pie del menú — la cuarta primitiva del §8
+  // ("scaleX 0 → 1 en reglas"), que hasta la sub-fase 5.4 estaba declarada en
+  // la spec pero sin implementación ni uso en todo el repo.
+  useEffect(() => {
+    const rule = ruleRef.current;
+    if (!open || !mounted || !rule || reducedMotion) return;
+    const tween = lineDraw(rule, { delay: DURATION.overlay });
+    tween.play();
+    return () => {
+      tween.kill();
+      gsap.set(rule, { clearProps: "all" });
+    };
+  }, [open, mounted, reducedMotion]);
 
   // Entrada: corre cuando el nodo recién se monta (open pasó a true).
   useEffect(() => {
@@ -121,7 +136,7 @@ export function FullscreenMenu({ open, onOpenChange }: FullscreenMenuProps) {
             Navegación principal de Hazing
           </Dialog.Description>
 
-          <Dialog.Close className="tracking-caps-sm absolute right-6 top-8 text-xs uppercase text-ink outline-none transition-colors duration-ui ease-ui focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink md:right-12">
+          <Dialog.Close className="tracking-caps-sm absolute right-6 top-8 inline-flex min-h-11 items-center text-xs uppercase text-ink outline-none transition-colors duration-ui ease-ui focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink md:right-12">
             Cerrar
           </Dialog.Close>
 
@@ -137,7 +152,11 @@ export function FullscreenMenu({ open, onOpenChange }: FullscreenMenuProps) {
                       onMouseLeave={() => setHoveredItem(null)}
                       onFocus={() => setHoveredItem(item.label)}
                       onBlur={() => setHoveredItem(null)}
-                      className="flex items-baseline gap-4 text-ink outline-none transition-colors duration-ui ease-ui focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink group-hover/nav:text-ink-3 group-hover/nav:hover:text-ink group-hover/nav:focus-visible:text-ink"
+                      // `min-h-14` (56px): el §9 lo pide explícito para los
+                      // ítems del menú en mobile, donde el clamp de tamaño
+                      // cae a su mínimo (2.5rem = 40px) y la caja del texto
+                      // sola no llega al target táctil.
+                      className="flex min-h-14 items-baseline gap-4 py-1 text-ink outline-none transition-colors duration-ui ease-ui focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink group-hover/nav:text-ink-3 group-hover/nav:hover:text-ink group-hover/nav:focus-visible:text-ink"
                     >
                       <span className="tracking-caps-sm text-xs text-ink-4">
                         {item.number}
@@ -172,22 +191,26 @@ export function FullscreenMenu({ open, onOpenChange }: FullscreenMenuProps) {
             </div>
           </div>
 
-          <div
-            className={cn(
-              "tracking-caps-sm flex flex-wrap items-center gap-6 border-t border-line pt-6 text-xs uppercase text-ink-2",
-            )}
-          >
+          <div className="tracking-caps-sm flex flex-wrap items-center gap-6 pt-6 text-xs uppercase text-ink-2">
+            {/* Regla dibujada con la primitiva lineDraw (§8) — por eso es un
+                nodo propio con transform, no un border-t del contenedor. */}
+            <div
+              ref={ruleRef}
+              aria-hidden="true"
+              className="absolute inset-x-6 h-px bg-line md:inset-x-12"
+              style={{ marginTop: "-1.5rem" }}
+            />
             <Link
               href="/cuenta"
               onClick={() => onOpenChange(false)}
-              className="outline-none transition-colors duration-ui ease-ui hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="inline-flex min-h-11 items-center outline-none transition-colors duration-ui ease-ui hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               Cuenta
             </Link>
             <Link
               href="/carrito"
               onClick={() => onOpenChange(false)}
-              className="outline-none transition-colors duration-ui ease-ui hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="inline-flex min-h-11 items-center outline-none transition-colors duration-ui ease-ui hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               Carrito
             </Link>
@@ -195,7 +218,7 @@ export function FullscreenMenu({ open, onOpenChange }: FullscreenMenuProps) {
               href={SOCIAL_INSTAGRAM_URL}
               target="_blank"
               rel="noreferrer noopener"
-              className="outline-none transition-colors duration-ui ease-ui hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="inline-flex min-h-11 items-center outline-none transition-colors duration-ui ease-ui hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               Instagram — @{SOCIAL_INSTAGRAM_HANDLE}
             </a>

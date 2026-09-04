@@ -40,6 +40,17 @@ type ScenePhase = "still" | "scene";
 
 export function SignatureMoment(): React.JSX.Element {
   const [phase, setPhase] = useState<ScenePhase>("still");
+  // Una vez montada, la escena NO se desmonta: solo se le apaga el render.
+  //
+  // Desmontar el <Canvas> al alejarse liberaba el contexto WebGL, pero
+  // montar/desmontar R3F repetidamente rompía React con "NotFoundError:
+  // Failed to execute 'removeChild' on 'Node'" — reproducido aislando el
+  // tramo en la re-medición de 5.4 (entrar y salir 4 veces de la sección:
+  // 1 error; el resto del scroll: 0). Además, cada re-montaje repetía la
+  // inicialización cara de la escena, que es candidata a las tareas largas
+  // del §10. Con `active=false` el frameloop queda en "never": cero trabajo
+  // de GPU fuera de pantalla, sin la churn de desmontar.
+  const [active, setActive] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
 
@@ -67,10 +78,10 @@ export function SignatureMoment(): React.JSX.Element {
         const entry = entries[0];
         if (!entry) return;
         // `rootMargin: "200%"` expande el área de detección a ~2 viewports:
-        // entrar = precargar y montar la escena; salir = la sección quedó a
-        // más de 2 viewports, se desmonta el <Canvas> y se libera el contexto
-        // WebGL, volviendo al still.
-        setPhase(entry.isIntersecting ? "scene" : "still");
+        // al entrar se monta la escena (una sola vez) y se enciende su
+        // frameloop; al salir solo se apaga el frameloop.
+        if (entry.isIntersecting) setPhase("scene");
+        setActive(entry.isIntersecting);
       },
       { rootMargin: "200%" },
     );
@@ -83,7 +94,7 @@ export function SignatureMoment(): React.JSX.Element {
     <div ref={rootRef} className="min-h-[100svh]">
       {phase === "scene" ? (
         <SceneErrorBoundary fallback={<SignatureMomentFallback />}>
-          <SignatureMomentSceneLazy />
+          <SignatureMomentSceneLazy active={active} />
         </SceneErrorBoundary>
       ) : (
         <SignatureMomentFallback />

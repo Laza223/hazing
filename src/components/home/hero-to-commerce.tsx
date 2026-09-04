@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useRef } from "react";
+
 import gsap from "gsap";
 import { Flip } from "gsap/Flip";
 
@@ -48,7 +48,8 @@ function ensureFlipRegistered(): void {
  *    de quedar "pegada" cubriendo la página (a diferencia de un overlay
  *    `fixed`, que sí necesitaría reaparecer/desaparecer con cuidado).
  * 2. **Flight** (Modo A, solo si `flightEnabled`): un clon visual de la
- *    imagen clave del hero, montado en un portal `fixed` a nivel de body,
+ *    imagen clave del hero, montado en una capa `fixed` creada a mano sobre
+ *    `document.body` (fuera del árbol de React, ver el efecto),
  *    que GSAP Flip anima desde la posición real de `heroKeyImage` hasta la
  *    posición real de `firstTileImage` (medida en vivo, nunca hardcodeada).
  *    El clon SOLO existe mientras el spacer está en su rango activo
@@ -70,10 +71,6 @@ export function HeroToCommerce() {
   const { flightEnabled, nodes } = useHomeSequenceState();
   const spacerRef = useRef<HTMLDivElement>(null);
   const curtainRef = useRef<HTMLDivElement>(null);
-  const layerRef = useRef<HTMLDivElement>(null);
-  const [portalReady, setPortalReady] = useState(false);
-
-  useEffect(() => setPortalReady(true), []);
 
   // Cortina — Modo B, común a los dos modos (§4 beat 3: "mientras el resto
   // se descubre con máscara horizontal", presente también en Modo A).
@@ -120,19 +117,30 @@ export function HeroToCommerce() {
     };
   }, [reducedMotion]);
 
-  // Flight — Modo A, solo con imagen clave y sin reduced motion. Depende de
-  // `portalReady`: la capa fija vive en un portal (document.body, ver abajo)
-  // que recién existe en el DOM después del primer render de cliente — sin
-  // esta dependencia el efecto correría una vez con `layerRef.current` en
-  // null (SSR) y nunca se volvería a ejecutar al aparecer el portal.
+  // Flight — Modo A: vuela el marco de la imagen clave hasta el primer tile
+  // de NEW IN. Solo con `flightEnabled` y sin reduced motion.
   useEffect(() => {
     const spacer = spacerRef.current;
-    const layer = layerRef.current;
-    if (!spacer || !layer) return;
+    if (!spacer) return;
     if (reducedMotion || !flightEnabled) return;
 
     ensureGsapPluginsRegistered();
     ensureFlipRegistered();
+
+    // Capa del clon creada A MANO, fuera de React.
+    //
+    // Antes era un <div> renderizado con createPortal y el clon se metía con
+    // `layer.appendChild(...)`: insertar nodos propios dentro de un contenedor
+    // que administra React hace que su reconciler, al desmontar o re-renderizar
+    // el portal, intente remover hijos que no puso él. Eso tiraba
+    // "NotFoundError: Failed to execute 'removeChild' on 'Node'" de forma
+    // reproducible al cruzar este spacer (3/3 corridas en la medición de 5.4,
+    // 0/3 con prefers-reduced-motion, que es justo la rama que se saltea).
+    // Con la capa fuera del árbol de React el conflicto no existe.
+    const layer = document.createElement("div");
+    layer.setAttribute("aria-hidden", "true");
+    layer.className = "pointer-events-none fixed inset-0 z-30";
+    document.body.appendChild(layer);
 
     let clone: HTMLDivElement | null = null;
     let flightTl: gsap.core.Timeline | null = null;
@@ -146,7 +154,7 @@ export function HeroToCommerce() {
     function mount() {
       const heroEl = nodes.current.heroKeyImage;
       const tileEl = nodes.current.firstTileImage;
-      if (!heroEl || !tileEl || !layer) return;
+      if (!heroEl || !tileEl) return;
 
       unmount(); // por si quedó un clon de un enter/leave anterior sin limpiar
 
@@ -239,8 +247,9 @@ export function HeroToCommerce() {
     return () => {
       driver.kill();
       unmount();
+      layer.remove();
     };
-  }, [reducedMotion, flightEnabled, nodes, portalReady]);
+  }, [reducedMotion, flightEnabled, nodes]);
 
   return (
     <>
@@ -254,20 +263,9 @@ export function HeroToCommerce() {
         <div ref={curtainRef} className="absolute inset-0 bg-paper" />
       </div>
 
-      {/* Capa fija para el clon del Flip — por debajo del header (z-40,
-          mix-blend-difference) y por encima de las secciones (§ "riesgos"
-          del plan: si se agrega un drawer u otro overlay fixed, revisar
-          z-index explícitamente, no asumir que z-30 alcanza para siempre). */}
-      {portalReady
-        ? createPortal(
-            <div
-              ref={layerRef}
-              aria-hidden="true"
-              className="pointer-events-none fixed inset-0 z-30"
-            />,
-            document.body,
-          )
-        : null}
+      {/* La capa fija del clon del Flip NO se renderiza con React (ver el
+          comentario del efecto): se crea y se destruye a mano para que React
+          nunca intente reconciliar un nodo que no puso él. */}
     </>
   );
 }

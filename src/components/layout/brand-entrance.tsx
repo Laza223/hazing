@@ -54,16 +54,19 @@ export function BrandEntrance() {
       };
     }
 
+    // El total tiene que quedar en ≤ 700 ms (§9). Medido en runtime, la
+    // versión anterior (0.45 + 0.1 + 0.25) daba 822-839 ms: el hold y el
+    // fade se recortan y el reveal, que es el gesto de marca, se conserva.
     const tl = gsap.timeline({ onComplete: finish });
     tl.fromTo(
       wordmark,
       { clipPath: "inset(0 100% 0 0)" },
       { clipPath: "inset(0 0% 0 0)", duration: 0.45, ease: EASE.outExpo },
     );
-    tl.to({}, { duration: 0.1 }); // hold ~100ms
+    tl.to({}, { duration: 0.05 }); // hold breve
     tl.to(overlay, {
       opacity: 0,
-      duration: 0.25,
+      duration: 0.2,
       ease: EASE.ui,
       onStart: () => setFadingOut(true),
     });
