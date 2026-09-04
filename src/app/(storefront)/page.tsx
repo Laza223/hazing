@@ -1,4 +1,5 @@
 import { ProductTile } from "@/components/catalog/product-tile";
+import { SignatureMoment } from "@/components/immersive/signature-moment";
 
 /**
  * Placeholder de home para la sub-fase 5.1 — ejercita las primitivas del
@@ -11,6 +12,14 @@ export default function HomePage() {
       <h1 className="tracking-caps-lg font-display text-4xl uppercase text-ink md:text-6xl">
         Hazing
       </h1>
+
+      {/* Momento inmersivo "La etiqueta" (sub-fase 5.3, docs/spec/05-direccion-arte.md
+          §6) — provisional acá hasta que 5.2 reemplace esta página completa
+          por Hero/NewIn/Lookbook. Se monta antes que la home coreografiada
+          porque es el mayor riesgo del proyecto (ADR implícito del contrato
+          de 5.3). */}
+      <SignatureMoment />
+
       <div className="mt-12 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
         <ProductTile
           href="/producto/placeholder-1"

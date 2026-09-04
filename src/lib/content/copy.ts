@@ -26,3 +26,11 @@ export const SOCIAL_INSTAGRAM_URL = "https://instagram.com/hazing.ok";
 export const CONTACT_WHATSAPP_DISPLAY = "+54 9 2323 52-9931";
 /** Formato wa.me: solo dígitos, con código de país. */
 export const CONTACT_WHATSAPP_URL = "https://wa.me/5492323529931";
+
+/** Momento inmersivo "La etiqueta" (docs/spec/05-direccion-arte.md §6). */
+export const SIGNATURE_MOMENT_LABEL = "01 — La marca";
+export const SIGNATURE_MOMENT_TAG_BACK = {
+  origin: "Luján, Buenos Aires",
+  sizeColorLabel: "Talle · Color",
+  exampleOrderNumber: "N° HZG-000000",
+} as const;
