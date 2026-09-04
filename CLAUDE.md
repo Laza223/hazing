@@ -74,19 +74,22 @@ Patrón: **Next.js App Router + servicios desacoplados en `src/lib/*`**. La lóg
 - **Facturación automática en v1: descartada.**
 - Dark mode: a decidir como parte de la identidad de marca (no es invariante universal).
 
-## Design system — monocromo premium (ver `docs/spec/00-handoff.md` §8)
+## Dirección de arte — digital flagship (ver `docs/spec/05-direccion-arte.md`)
 
-Es el requisito de producto más importante del proyecto. Reglas verificables (no improvisar a ojo):
+Es el requisito de producto más importante del proyecto. **Fuente de verdad vigente: `docs/spec/05-direccion-arte.md`** (redefine el objetivo de Fase 5 el 2026-09-03: de "design system básico" a experiencia coreografiada tipo digital flagship — no improvisar a ojo). El §8 del handoff (`00-handoff.md`) sigue valiendo donde ese documento no lo contradice. ADR de stack de motion/3D: `docs/decisions/0003-motion-y-3d.md`.
 
-- **Texto:** `#171717` (ink), NUNCA `#000` puro. Escala de grises Tailwind `neutral` casi 1:1 con el brief.
-- **Imágenes de producto:** `border-radius: 0`. Radio de 2-4px máximo en botones/inputs. `9999px` solo en swatches/avatares/dots.
-- **Aspect ratio:** uno solo por contexto (`3/4` PDP/lookbook, `4/5` grilla de catálogo). Nunca mezclar en la misma grilla.
-- **Movimiento:** micro-interacciones 150-250ms ease-in-out · imagen (zoom/scale/filter) 500-800ms `cubic-bezier(0.4, 0, 0.2, 1)` · `prefers-reduced-motion` obligatorio (opacity-only o instantáneo).
-- **Tipografía:** `Inter` (UI/body/nav) + `Archivo` 700-900 (display/wordmark). Tracking 0-0.01em en sentence-case, **0.08-0.15em en MAYÚSCULAS**. Nada de Bebas Neue ni condensadas genéricas.
-- **Estados sin rojo ni verde:** forma + texto comunican éxito/error/stock, nunca un badge de color (WCAG 1.4.1).
-- **Anti-patrones prohibidos:** carruseles con flechas grandes, badges rojos de oferta, countdowns de urgencia, `box-shadow` marcado, más de un color no-neutral en la misma vista, mezclar ratios, easing bounce/elastic, popups de descuento al entrar.
+Reglas verificables, ya implementadas en `tailwind.config.ts`/`src/app/globals.css`/`src/lib/motion/*` (sub-fase 5.1, commits `97443c8` + `865a5f4`):
 
-Fase 5 implementa esto como tokens de Tailwind — hasta entonces el esqueleto usa una paleta neutral genérica de placeholder.
+- **Texto:** `#171717` (`ink`), NUNCA `#000` puro — ni siquiera en el wordmark: usar `<Wordmark />` (`src/components/brand/wordmark.tsx`, SVG inline), nunca `<img src=".../hazing-wordmark.svg">` (un `<img>` no hereda `currentColor`, renderiza negro puro).
+- **Imágenes de producto:** `border-radius: 0`. `rounded-control` (2px) en botones/inputs. `rounded-full` solo en swatches/avatares/dots.
+- **Aspect ratio:** uno solo por contexto (`3/4` PDP/lookbook, `4/5` grilla de catálogo/NEW IN). Nunca mezclar en la misma grilla.
+- **Movimiento:** tokens en `src/lib/motion/tokens.ts` (mismos valores que los `--dur-`/`--ease-` de `globals.css`) — micro/UI 150-250ms `ease-ui`, overlays 450ms, imagen 700ms, cinema 1200ms. GSAP + ScrollTrigger/Flip para todo lo secuenciado; Lenis solo desktop con puntero fino; three/R3F/drei solo en `src/components/immersive/*`, lazy, nunca en el bundle inicial. `prefers-reduced-motion` de primera clase (`useReducedMotion()` + `gsap.matchMedia`).
+- **Foco visible siempre:** `outline` (nunca `ring`/`shadow`, que son box-shadow) en todo elemento interactivo — un hallazgo real de accesibilidad (WCAG 2.4.7) se coló en la primera versión del menú fullscreen; cualquier componente nuevo con `outline-none` tiene que llevar su `focus-visible:outline` en el mismo `className`.
+- **Tipografía:** `Inter` (UI/body/nav) + `Archivo` variable con eje `wdth` (display/wordmark) — `weight: "variable"` en `next/font/google`, no pesos fijos (`weight` fijo + `axes` no compila). Tracking por tamaño: ≤16px 0.12em, 17-40px 0.06em, >40px 0.02em en MAYÚSCULAS.
+- **Estados sin rojo ni verde:** forma + texto comunican éxito/error/stock (`StockLine`, `SizeSelector`), nunca un badge de color. "Agotado" siempre visible en el flujo del documento, nunca solo en `:hover` (no existe en mobile).
+- **Anti-patrones prohibidos:** carruseles con flechas grandes, badges rojos de oferta, countdowns de urgencia, `box-shadow`/`ring-*`, más de un color no-neutral en la misma vista, mezclar ratios, easing bounce/elastic, popups de descuento al entrar, cursores custom, tilt, glassmorphism, gradientes, marquees.
+
+Assets pendientes de producción (fashion film, fotografía de campaña y de producto) están catalogados en `docs/spec/05-direccion-arte.md` §12 — no se inventan sustitutos con CSS, se construye contra un slot con el código del asset hasta que exista.
 
 ## Seguridad y Permisos
 
