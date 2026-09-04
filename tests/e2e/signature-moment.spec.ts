@@ -32,11 +32,21 @@ test.describe("momento inmersivo 'La etiqueta' — reduced motion", () => {
 
     await expect(page.getByText("01 — La marca")).toBeVisible();
     await expect(page.getByText(/HAZING — Luján, Buenos Aires/)).toBeVisible();
+    // `.last()`: el mismo `BRAND_STATEMENT` (src/lib/content/copy.ts) también
+    // aparece en la línea inferior del hero (beat 2, sub-fase 5.2) — acá se
+    // verifica específicamente la instancia del momento inmersivo, que en el
+    // orden de la home (Hero → ... → SignatureMoment) es la última.
     await expect(
-      page.getByText("Prendas que no necesitan ruido."),
+      page.getByText("Prendas que no necesitan ruido.").last(),
     ).toBeVisible();
 
-    const results = await new AxeBuilder({ page }).analyze();
+    // [data-mix-blend-difference]: mismo falso positivo de axe/mix-blend-mode
+    // que en tests/e2e/storefront-shell.spec.ts (el hero, beat 2, ahora
+    // también está montado en esta página) — ver el comentario en
+    // src/components/home/hero.tsx.
+    const results = await new AxeBuilder({ page })
+      .exclude("[data-mix-blend-difference]")
+      .analyze();
     expect(results.violations).toEqual([]);
   });
 });
@@ -102,7 +112,11 @@ test.describe("momento inmersivo 'La etiqueta' — escena real", () => {
       `errores de consola: ${erroresReales.join(" | ")}`,
     ).toEqual([]);
 
-    const results = await new AxeBuilder({ page }).analyze();
+    // [data-mix-blend-difference]: ver comentario del test de reduced-motion
+    // arriba y src/components/home/hero.tsx.
+    const results = await new AxeBuilder({ page })
+      .exclude("[data-mix-blend-difference]")
+      .analyze();
     expect(results.violations).toEqual([]);
   });
 });
