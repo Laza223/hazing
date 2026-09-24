@@ -7,6 +7,7 @@ import { Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FullscreenMenu } from "@/components/layout/fullscreen-menu";
 import { Wordmark } from "@/components/brand/wordmark";
+import { useCartUI } from "@/components/cart/cart-provider";
 
 /**
  * Header — sticky (docs/spec/05-direccion-arte.md §3.2, §5).
@@ -24,6 +25,7 @@ import { Wordmark } from "@/components/brand/wordmark";
 export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [overHero, setOverHero] = useState(false);
+  const { cartCount } = useCartUI();
 
   useEffect(() => {
     const hero = document.querySelector("[data-hero-section]");
@@ -83,10 +85,11 @@ export function Header() {
         </Link>
 
         <Link
+          id="header-cart-link"
           href="/carrito"
           className="tracking-caps-sm inline-flex min-h-11 items-center text-xs font-medium uppercase outline-none transition-colors duration-ui ease-ui focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
         >
-          Carrito
+          Carrito ({cartCount})
         </Link>
       </header>
 

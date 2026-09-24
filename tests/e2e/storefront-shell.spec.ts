@@ -158,11 +158,12 @@ test.describe("home coreografiada (sub-fase 5.2)", () => {
       page.getByRole("link", { name: "Ver", exact: true }).first(),
     ).toBeVisible();
 
-    // Beat 4 — NEW IN: encabezado de sección + al menos el primer tile.
+    // Beat 4 — NEW IN: encabezado de sección + al menos el primer tile. Desde
+    // la sub-fase 6.2 lee `getNewestProducts()` (datos reales, sin nombres
+    // mock fijos que anclar): se valida que exista un link a una PDP en vez
+    // de un texto literal.
     await expect(page.getByRole("heading", { name: "Nuevo" })).toBeVisible();
-    await expect(
-      page.getByRole("link", { name: /Prenda de ejemplo 1/ }),
-    ).toBeVisible();
+    await expect(page.locator('a[href^="/producto/"]').first()).toBeVisible();
 
     // Beat 6 — Lookbook: `<section aria-label="Lookbook">` (rol implícito
     // "region"), ítems numerados.

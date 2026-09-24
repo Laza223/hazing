@@ -23,7 +23,7 @@ Resto:
 
 - `pnpm dev` — localhost:3000 · `pnpm build` + `pnpm start` — build de producción local (es el mismo build que corre Vercel; sirve para medir bundle y Lighthouse)
 - `pnpm test:watch` · `pnpm test:e2e` — Playwright E2E (`@axe-core/playwright` para a11y)
-- `pnpm db:migrate` — `prisma migrate dev` (sin aplicar todavía, ver Fase 3) · `pnpm db:push` · `pnpm db:studio` · `pnpm db:seed` (se agrega cuando haya seed real)
+- `pnpm db:migrate` — `prisma migrate dev` (sin aplicar todavía, ver Fase 3) · `pnpm db:push` · `pnpm db:studio` · `pnpm db:seed` / `db:seed:clean` — productos `demo-*` (pasan por el guard; ver `docs/spec/06-storefront.md` §4). Base local sin Docker: `prisma dev --name hazing`, no soporta conexiones concurrentes → `DATABASE_POOL_MAX=1` (ya en `.claude/launch.json`)
 - **CI:** GitHub Actions corre `quality` en cada push/PR a `main` (incluye el gate de three.js/lenis fuera de `.next/server`). `deploy` se agrega en Fase 10: Vercel CLI + token, atrás del gate, calcado de glamify.
 - **Guard de escritura en DB:** `scripts/prod-write-guard.ts` (copiado de glamify) — scripts mutadores exigen tipear el host por terminal interactiva.
 
@@ -60,7 +60,7 @@ Patrón: **Next.js App Router + servicios desacoplados en `src/lib/*`**. La lóg
 
 ## Catálogo — talle y color (ver ADR 0001)
 
-`Product.sizeSystem` (`letters | numeric | one_size`) elegido por producto, no por categoría. `ProductVariant.size` + `ProductVariant.color`, validados en `src/lib/admin/products/validation.ts` contra `SIZE_SCALES` de `src/lib/catalog/sizes.ts` (ninguno de los dos existe todavía: `sizes.ts` entra en Fase 6, `validation.ts` en Fase 7). Par `(size, color)` único por producto. Escalas nuevas = cambio de código, no de admin.
+`Product.sizeSystem` (`letters | numeric | one_size`) elegido por producto, no por categoría. `ProductVariant.size` + `ProductVariant.color`, validados en `src/lib/admin/products/validation.ts` contra `SIZE_SCALES` de `src/lib/catalog/sizes.ts` (`sizes.ts` existe desde la Fase 6; `validation.ts` entra en Fase 7). Par `(size, color)` único por producto. Escalas nuevas = cambio de código, no de admin.
 
 ## Vetos de producto (no reproponer)
 

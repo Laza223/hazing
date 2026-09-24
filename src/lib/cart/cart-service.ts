@@ -63,51 +63,80 @@ export interface AddItemInput {
   qty: number;
 }
 
-/** Agrega (o incrementa) una línea. Calcula el snapshot de precio en el server. */
-export async function addItem(input: AddItemInput): Promise<void> {
+/** Resultado de `addItem`/`updateItem`: `notice` es un aviso NO bloqueante (ej. "Solo
+ *  quedan N.") para cuando la cantidad pedida se clampeó al stock disponible. */
+export interface CartMutationResult {
+  notice?: string;
+}
+
+/** Agrega (o incrementa) una línea. Calcula el snapshot de precio en el server. Una línea
+ *  nunca supera el `stock` de su variante: sin stock tira error; si la cantidad pedida (sumada
+ *  a la ya existente) lo supera, clampea a `stock` y devuelve un aviso en vez de tirar error. */
+export async function addItem(
+  input: AddItemInput,
+): Promise<CartMutationResult> {
   const qty = Math.max(1, Math.floor(input.qty));
   const variant = await prisma.productVariant.findUnique({
     where: { id: input.variantId },
     include: { product: true },
   });
   if (!variant || !variant.active) throw new Error("Variante no disponible.");
+  if (variant.stock <= 0) throw new Error("Sin stock en esa variante.");
   const unit = getEffectivePrice(variant.product, variant);
   const existing = await prisma.cartItem.findFirst({
     where: { cartId: input.cartId, variantId: input.variantId },
   });
+  const desired = (existing?.qty ?? 0) + qty;
+  const finalQty = Math.min(desired, variant.stock);
+  const notice = finalQty < desired ? `Solo quedan ${finalQty}.` : undefined;
+
   if (existing)
     await prisma.cartItem.update({
       where: { id: existing.id },
-      data: { qty: existing.qty + qty },
+      data: { qty: finalQty },
     });
   else
     await prisma.cartItem.create({
       data: {
         cartId: input.cartId,
         variantId: input.variantId,
-        qty,
+        qty: finalQty,
         unitPriceSnapshot: unit,
       },
     });
+  return notice ? { notice } : {};
 }
 
 /** Actualiza la cantidad de una línea (0 o menos → elimina). Scopeada a `cartId`: un itemId que no
- *  pertenece a ese carrito no matchea (evita que una clienta toque el carrito de otra por id). */
+ *  pertenece a ese carrito no matchea (evita que una clienta toque el carrito de otra por id).
+ *  Igual que `addItem`, la cantidad nunca supera el `stock` de la variante: se clampea con un
+ *  aviso en vez de tirar error. */
 export async function updateItem(
   cartId: string,
   itemId: string,
   qty: number,
-): Promise<void> {
+): Promise<CartMutationResult> {
   if (qty <= 0) {
     await removeItem(cartId, itemId);
-    return;
+    return {};
   }
-  const res = await prisma.cartItem.updateMany({
+  const item = await prisma.cartItem.findFirst({
     where: { id: itemId, cartId },
-    data: { qty: Math.floor(qty) },
+    include: { variant: true },
   });
-  if (res.count === 0)
-    throw new Error("Esa línea no pertenece a este carrito.");
+  if (!item) throw new Error("Esa línea no pertenece a este carrito.");
+
+  const requested = Math.floor(qty);
+  if (item.variant.stock <= 0) {
+    await removeItem(cartId, itemId);
+    return { notice: "Sin stock en esa variante." };
+  }
+  const finalQty = Math.min(requested, item.variant.stock);
+  await prisma.cartItem.updateMany({
+    where: { id: itemId, cartId },
+    data: { qty: finalQty },
+  });
+  return finalQty < requested ? { notice: `Solo quedan ${finalQty}.` } : {};
 }
 
 /** Elimina una línea. Scopeada a `cartId` (mismo motivo que `updateItem`). */

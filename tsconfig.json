@@ -4,6 +4,9 @@
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
+    // Los scripts de prisma/ corren con TS nativo de Node 24 (sin bundler): imports
+    // relativos necesitan extensión .ts explícita. Válido acá porque ya hay noEmit.
+    "allowImportingTsExtensions": true,
     "strict": true,
     "noEmit": true,
     "esModuleInterop": true,

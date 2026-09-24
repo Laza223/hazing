@@ -1,4 +1,4 @@
-import { formatARS } from "@/lib/money";
+import { formatPrice } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
 export interface PriceLineProps {
@@ -29,10 +29,10 @@ export function PriceLine({
     >
       {hasDiscount && (
         <span className="text-ink-3 line-through">
-          {formatARS(compareAtPrice as number)}
+          {formatPrice(compareAtPrice as number)}
         </span>
       )}
-      <span>{formatARS(price)}</span>
+      <span>{formatPrice(price)}</span>
     </p>
   );
 }

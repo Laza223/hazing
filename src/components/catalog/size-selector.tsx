@@ -51,7 +51,7 @@ export function SizeSelector({
               aria-pressed={selected}
               onClick={() => onChange(size.value)}
               className={cn(
-                "h-10 min-w-10 rounded-control border border-line px-3 text-sm text-ink outline-none transition-colors duration-ui ease-ui focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+                "h-11 min-w-11 rounded-control border border-line px-3 text-sm text-ink outline-none transition-colors duration-ui ease-ui focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
                 selected && "border-ink bg-ink text-paper",
                 !size.available && "cursor-not-allowed text-ink-3 line-through",
               )}

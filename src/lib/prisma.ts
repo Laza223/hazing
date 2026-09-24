@@ -28,8 +28,20 @@ function resolveConnectionString(): string {
   return url.replace("?pgbouncer=true", "");
 }
 
+// Tope del pool de `pg`. Sin la variable, el default de `pg` (10), igual que
+// glamify. Existe por el Postgres local de `prisma dev`, que no soporta
+// conexiones concurrentes: con más de una, corta sockets (P1017, medido) y
+// cualquier `Promise.all` de queries rompe la página. En local va en 1.
+function resolvePoolMax(): number | undefined {
+  const max = Number(process.env.DATABASE_POOL_MAX);
+  return Number.isInteger(max) && max > 0 ? max : undefined;
+}
+
 function createPrismaClient(): PrismaClient {
-  const adapter = new PrismaPg({ connectionString: resolveConnectionString() });
+  const adapter = new PrismaPg({
+    connectionString: resolveConnectionString(),
+    max: resolvePoolMax(),
+  });
   return new PrismaClient({
     adapter,
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],

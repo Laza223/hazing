@@ -3,6 +3,8 @@
 Fecha: 2026-09-03 · Estado: **propuesta** (se acepta junto con [`docs/spec/05-direccion-arte.md`](../spec/05-direccion-arte.md))
 
 > **Enmendada el 2026-09-24 por [ADR 0005](0005-deploy-en-vercel.md) (deploy en Vercel):** ya no existe `.open-next/worker.js` ni `build:worker`. El gate pasa a `.next/server` después de `pnpm build` (en CI): `WebGLRenderer` y `lenis-smooth` tienen que dar 0 archivos. El marcador viejo de lenis (`class Lenis`) no sobrevivía al minificado y ese control nunca podía fallar. El bloqueo de EPERM de abajo desaparece: el build local es el build real.
+>
+> **Hallazgo del gate corregido (2026-09-24):** apenas las rutas del storefront pasaron a dinámicas (Fase 6), el gate encontró `lenis-smooth` en `.next/server/chunks/*`: `MotionProvider` importaba `lenis` de forma estática, en contra de la regla de fronteras de este mismo ADR, desde la 5.1. Se movió a `src/lib/motion/lenis-scroller.tsx`, cargado con `next/dynamic(..., { ssr: false })` solo cuando corresponde (desktop, puntero fino, sin reduced motion). Resultado medido: 0 en `.next/server`, 1 chunk propio en `.next/static`, y mobile ya no descarga Lenis.
 
 ## Problema
 

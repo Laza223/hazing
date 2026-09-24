@@ -6,6 +6,36 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["dev"],
       "port": 3000
+    },
+    {
+      "name": "hazing-dev-localdb",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "exec",
+        "cross-env",
+        "DATABASE_URL=postgres://postgres:postgres@localhost:51214/template1?sslmode=disable",
+        "DATABASE_POOL_MAX=1",
+        "next",
+        "dev",
+        "--port",
+        "3001"
+      ],
+      "port": 3001
+    },
+    {
+      "name": "hazing-prod-localdb",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "exec",
+        "cross-env",
+        "DATABASE_URL=postgres://postgres:postgres@localhost:51214/template1?sslmode=disable",
+        "DATABASE_POOL_MAX=1",
+        "next",
+        "start",
+        "--port",
+        "3000"
+      ],
+      "port": 3000
     }
   ]
 }

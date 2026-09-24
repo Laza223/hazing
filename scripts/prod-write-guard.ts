@@ -11,10 +11,24 @@ import { createInterface } from "node:readline/promises";
  * Ninguno de los scripts que llaman a esto corre en CI ni en ningún flujo
  * automático (ver .github/workflows/ci.yml) — negarse sin TTY es seguro, nunca
  * cuelga un pipeline real.
+ *
+ * Única excepción: una base en esta misma máquina (`localhost`/`127.0.0.1`,
+ * ej. `prisma dev`). Producción nunca puede ser localhost, y sin esto el seed
+ * de desarrollo no puede correr desde un agente sin terminal interactiva.
  */
+export function isLocalDatabaseHost(host: string): boolean {
+  const hostname = host.replace(/:\d+$/, "").toLowerCase();
+  return hostname === "localhost" || hostname === "127.0.0.1";
+}
+
 export async function confirmProdWrite(action: string): Promise<void> {
   const url = process.env.DATABASE_URL ?? "";
   const host = url.match(/@([^/?]+)/)?.[1] ?? "(DATABASE_URL no seteada)";
+
+  if (isLocalDatabaseHost(host)) {
+    console.log(`\n${action} contra la base local ${host} (sin confirmación).`);
+    return;
+  }
 
   if (!process.stdin.isTTY) {
     throw new Error(

@@ -1,0 +1,75 @@
+# 06 — Storefront (Fase 6)
+
+**Estado:** en curso desde 2026-09-24 · **Alcance decidido por Lazar (2026-09-24):** "todo como glamify", sin fecha fija · Fuentes: handoff §6/§8.4/§8.7, [`05-direccion-arte.md`](05-direccion-arte.md) §3, §7, §9, ADR [0001](../decisions/0001-esquema-talles.md) (talles) y [0005](../decisions/0005-deploy-en-vercel.md) (Vercel).
+
+La grilla y la PDP son las dos pantallas donde se gana o se pierde la percepción premium (handoff §6). Todo lo visual respeta `05-direccion-arte.md`; lo que no está ahí se decide acá y queda escrito.
+
+## 1. Sub-fases
+
+| Sub-fase | Qué | Depende de |
+|---|---|---|
+| **6.1 Datos** | Port de `src/lib/catalog/{queries,categories,filters,stock}.ts` de glamify adaptado a talle + color; `sizes.ts` nuevo (ADR 0001); helper de URL de imagen; Server Actions de carrito; seed de demo. Tests unitarios de todo lo puro. | — |
+| **6.2 Catálogo** | `/tienda`, `/tienda/[categoria]`, `/tienda/[categoria]/[subcategoria]`: grilla, filtros, orden, paginación, breadcrumbs, estados vacío/carga. | 6.1 |
+| **6.3 PDP + carrito** | `/producto/[slug]` según §7 de dirección de arte; selector talle + color; sticky mobile; `CartProvider`, `CartDrawer`, `/carrito`; contador en header. Home con datos reales (NEW IN). | 6.1 |
+| **6.4 Cuenta, favoritos, reseñas** | `/ingresar`, `/cuenta/*`, favoritos y reseñas en PDP (paridad con glamify). | 6.3 + base real |
+| **6.5 Legales e institucionales** | `/arrepentimiento` (Botón de Arrepentimiento, Res. 424/2020: formulario + `RetractionRequest` + constancia `ARR-NNNNNN`, obligatorio), `/privacidad` (Ley 25.326), `/terminos`, `/envios-y-cambios`, `/preguntas-frecuentes`, `/contacto`. Port de glamify. El footer ya linkea a `/arrepentimiento` y `/privacidad` y hoy dan 404. Necesita datos legales de la dueña (ver §7). | 6.3 |
+
+6.2 y 6.3 corren en paralelo sobre archivos disjuntos. Sin base de datos real (Supabase de Lazar, ver `SETUP.md` §1) se implementa y se testea lo puro; el recorrido en navegador y los E2E esperan la base.
+
+## 2. Qué se porta de glamify y qué no
+
+Mapa completo relevado el 2026-09-24 (reconnaissance, Sonnet). Resumen:
+
+- **Tal cual:** `lib/catalog/{queries,categories,filters,stock}.ts` (el schema de Hazing es compatible: no usan tono ni `weightGr`), la parte de carrito de `(storefront)/actions.ts` (`addToCartAction`, `updateCartItemAction`, `removeCartItemAction`, `setVariantQtyAction`, `applyCouponAction`, `removeCouponAction`), `components/cart/cart-provider.tsx`.
+- **Adaptar:** páginas de `tienda/**`, `producto/[slug]`, `carrito`; la lógica de routing/estado de `product-grid`, `catalog-breadcrumbs`, `catalog-pagination`, `sort-select`, `filter-sheet`, `active-filter-chips`, `category-chips-nav`, `product-gallery`, `pdp-accordions`, `quantity-stepper` y del resto de `components/cart/*`. El JSX se reescribe contra los componentes y tokens de Hazing.
+- **No se porta:** `product-card`, `variant-swatch-selector`, `price-tag`, `stock-badge` (ya reemplazados por `ProductTile`, `PriceLine`, `StockLine`, `SizeSelector`, `Swatch`); todo lo de combos/kit/order bump (`kit.ts`, `recommend*.ts`, `order-bump.tsx`, `quick-variant-picker`, `card-quick-stepper`); `trust-badges`; marketing (exit-intent, reels, welcome banner, gift); `ui/sheet` de shadcn (el drawer se hace con `@radix-ui/react-dialog`, ya instalado). Checkout y cotización de envío son Fase 8/9.
+- **Analítica:** `@/lib/analytics/track` no existe (PostHog pendiente). Donde glamify trackea, se deja el punto marcado y sin llamada.
+
+## 3. Decisiones de diseño de esta fase
+
+1. **Grilla:** 2 columnas mobile, 3 desde `md`, 4 desde `xl` (handoff §8.4). Tiles `4/5`, `ProductTile` existente, sin card ni sombra. Gutter 16/24 px. Paginación de 12 (`PAGE_SIZE` de glamify) con links de texto "Anterior · 1 2 3 · Siguiente" — son URLs reales (`?page=2`, el param de glamify), indexables y compatibles con volver atrás; sin scroll infinito.
+2. **Cabecera de catálogo:** breadcrumb (12 px, mayúsculas 0.12em) · H1 en Archivo · cantidad de productos · fila de subcategorías como links de texto · a la derecha "Filtrar (n)" y "Ordenar" como botones de texto. Sin chips redondeados: los filtros activos se listan como texto con "×" al lado del H1.
+3. **Filtros:** los de glamify (`min`/`max` de precio, `oferta=1`, `disponible=1`, `q`) más los dos ejes de la variante: `talle` y `color`, multivalor (`?talle=M&talle=L`). Un producto entra si tiene al menos una variante activa que cumpla talle **y** color (y stock, si `disponible=1`). Panel lateral (`Dialog` de Radix, entra desde la derecha en 450 ms `ease-out-expo`, se separa con `line`, sin sombra). En mobile ocupa la pantalla. Aplicar = navegar a la URL con los params; el estado vive en la URL, no en el cliente.
+4. **Orden:** `relevancia`, `novedades`, `precio_asc`, `precio_desc` (claves de glamify). `<select>` nativo estilado: accesible y sin JS extra.
+5. **PDP:** exactamente §7 de dirección de arte. Acordeones con `<details>`/`<summary>` nativos (sin dependencia nueva). El selector de variante son dos ejes: color primero (swatches 20 px + nombre en texto), talle después (`SizeSelector`, ordenado por la escala de `sizes.ts`, no por `ProductVariant.order`); un talle sin stock para el color elegido va tachado + "Agotado", nunca gris claro. Si el producto tiene un solo color, no se muestra el eje de color; si es `one_size`, no se muestra el de talle.
+6. **Carrito:** agregar abre el `CartDrawer` (resumen mínimo: línea agregada, subtotal, "Ver carrito"); el header "Carrito (n)" lleva a `/carrito`, que es la página completa (handoff §8.7: mobile-first, el drawer no reemplaza la página). "Finalizar compra" apunta a `/checkout` recién en Fase 8; hasta entonces no se muestra.
+7. **Envío gratis:** si `Setting.freeShippingThreshold` tiene valor, una línea de texto "Te faltan $X para el envío gratis" con una regla de 1 px `ink` que avanza (`lineDraw`). Es información, no urgencia. Sin valor configurado (decisión pendiente #9 de la dueña), no se muestra.
+8. **Imágenes de producto:** `next/image` con el `remotePatterns` de Supabase ya configurado, `sizes` exacto por contexto y `priority` solo en la primera imagen de la PDP y los primeros 4 tiles. Si un producto no tiene imágenes, se muestra el slot del asset A4 (regla del §12: no se inventa sustituto).
+9. **Home:** NEW IN pasa a leer `getNewestProducts()`. *Corregido al medir (2026-09-24):* la home no puede ser ISR — el layout del storefront lee la cookie del carrito (contador del header), así que todas sus rutas son dinámicas, igual que en glamify. Es una consulta liviana por visita; si el tráfico lo pide, se cachea esa consulta con `unstable_cache`, no la página.
+10. **Textos de la dueña:** "Guía de talles" y "Envíos y cambios" dependen de decisiones pendientes (política de cambios #8, tabla de medidas). Van en `src/lib/content/copy.ts` marcados `[BORRADOR]`, igual que el resto del copy.
+11. **404 y `loading.tsx`:** `/tienda` y sus categorías **no** llevan `loading.tsx`. *Medido (2026-09-24):* con `loading.tsx` en ese segmento, en build de producción las navegaciones que solo cambian params (filtros, orden, quitar un filtro) quedaban congeladas en la mitad de los intentos: Next 15.5 reusa el estado de carga de la entrada de caché de la página actual y el render nunca se confirma, sin error visible (sin `loading.tsx`: 0 de 24). Bonus: una categoría inexistente responde 404 real. La PDP y `/carrito` sí conservan `loading.tsx` (no navegan por params): un producto inexistente responde **200** con `<meta name="robots" content="noindex">`, igual que glamify.
+
+## 4. Datos de demo
+
+`prisma/seed.ts` carga categorías reales tentativas y productos de demo con slug `demo-*`, para poder recorrer la tienda antes de que la dueña cargue su catálogo. Como dev y producción comparten base (igual que glamify), el seed pasa por `scripts/prod-write-guard.ts` y existe un `prisma/cleanup-seed.ts` que borra solo lo `demo-*`. Corre con el TypeScript nativo de Node 24 (`node --env-file=.env.local prisma/seed.ts`): sin `tsx`, sin dependencias nuevas.
+
+## 5. Cómo se cierra cada sub-fase
+
+Juez en verde (`format:check`, `lint`, `typecheck`, `test`) · `pnpm build` con JS inicial ≤ 220 KB gz por ruta y sin three/lenis en `.next/server` · E2E de Playwright del recorrido tienda → PDP → agregar → carrito (con base real) · axe sin violaciones en `/tienda`, `/producto/*`, `/carrito`, desktop y mobile · verificación de UX en navegador y revisión adversarial con contexto fresco, ambas por agentes distintos de quien implementó.
+
+## 6. Pendientes conocidos
+
+- **Carrito concurrente (heredado de glamify, sin test en ningún repo):** `addItem` hace `findFirst` → `create` sin unicidad, y `ensureCartId()` puede crear dos carritos con dos acciones simultáneas sin cookie. Se corrige con `@@unique([cartId, variantId])` en `CartItem` + `upsert`, **en la migración inicial** (Fase 3 real): el schema se toca una sola vez junto con `weightGr` (ADR 0004), no antes.
+- Categorías huérfanas al desactivar un padre (ver ledger 6.1): lo resuelve el admin de categorías en Fase 7.
+
+## 7. Datos que necesita la Fase 6 de la dueña
+
+1. **Identidad legal para `/terminos`, `/privacidad` y `/arrepentimiento`:** nombre y apellido (o razón social), CUIT/CUIL, domicilio y email de contacto que se publican como responsable de la tienda (Ley 24.240 y 25.326 lo exigen).
+2. **Política de cambios** (decisión pendiente #8 del handoff): plazo, condiciones, quién paga el envío del cambio.
+3. **Tabla de medidas** para la guía de talles (por tipo de prenda).
+4. **Umbral de envío gratis** (#9), si lo hay.
+
+## 8. Ledger de delegaciones
+
+- 2026-09-24 · reconnaissance del port (Sonnet, ~113 k tokens, 50 llamadas, 4 min) → mapa de §2.
+- 2026-09-24 · implementación 6.1 (Sonnet, ~175 k tokens, 82 llamadas, 14 min) → juez verde, 218 tests. Desvíos: SKU del seed generado dentro del script (no existe `src/lib/sku.ts`, llega con el admin); `applyCouponAction` cuenta `perCustomerLimit` como invitada (0 canjes previos) hasta que exista la sesión de clienta en 6.4.
+- 2026-09-24 · revisión adversarial 6.1 (Sonnet, ~83 k tokens, 29 llamadas, 6 min) → aprobada con reservas. Corregido: formato de un test, `cleanup-seed.ts` confirmaba el host de `DATABASE_URL` y borraba contra `DIRECT_URL` (ahora usa la misma variable que el guard), `talle`/`color` vacíos o repetidos filtraban a cero. Queda para Fase 7 (heredado de glamify, sin test en ningún repo): desactivar una categoría padre con hijas activas las promueve a raíz y rompe `/tienda/padre/hija` — el admin de categorías tiene que impedirlo o desactivar en cascada.
+- 2026-09-24 · implementación 6.2 catálogo (Sonnet, ~247 k tokens, 119 llamadas, 23 min) y 6.3 PDP + carrito (Sonnet, ~270 k tokens, 135 llamadas, 26 min), en paralelo sobre archivos disjuntos → juez verde, 221 tests. Después, en la sesión principal: facetas de filtro sobre toda la categoría (`getFilterFacets`; 6.2 las derivaba de la página visible), `cache()` en `getProductBySlug`/`getCategoryTree`, y lo medido de ISR y 404 (§3.9, §3.11).
+- 2026-09-24 · revisión adversarial 6.2 + 6.3 (Sonnet, ~107 k tokens, 63 llamadas, 8 min) → aprobada con reservas: precio de línea congelado vs total vigente, cantidad sin tope de stock, `StockLine` sin usar, concurrencia de carrito (§6).
+- 2026-09-24 · verificación de UX con Playwright sobre build de producción (Sonnet, ~183 k tokens, 100 llamadas, 20 min) → funciona con problemas: 0 violaciones de axe en 10 combinaciones, grilla 2/4 columnas y 4/5 medidas, sticky mobile correcta; foco perdido al cerrar el drawer, 404 en `/arrepentimiento` y `/privacidad` (→ 6.5), targets táctiles de 40 px.
+- 2026-09-24 · correcciones de las dos revisiones (Sonnet, ~192 k tokens, 145 llamadas, 16 min) → precio vigente en toda la UI de carrito, tope de cantidad por stock en el servicio (con aviso "Solo quedan N."), `StockLine` en PDP, foco devuelto al cerrar el drawer, targets ≥ 44 px, borde en swatches, `formatPrice` sin ",00", breadcrumb en PDP. Juez verde, 231 tests.
+- 2026-09-24 · en la sesión principal, al recompilar: el gate de CI detectó Lenis en el bundle del servidor (import estático en `MotionProvider` desde la 5.1). Corregido con `lenis-scroller.tsx` + `next/dynamic` sin SSR (ver enmienda del ADR 0003). E2E existentes: 10/10 en serie; en paralelo 2 salen inestables por la base local de un solo proceso, no por el producto.
+- 2026-09-24 · base local para desarrollo: `prisma dev --name hazing` (Postgres local de Prisma, sin Docker), schema aplicado con `migrate diff` + `db execute` para no generar la migración inicial antes de que entre `weightGr` (ADR 0004). Dev server contra esa base: configuración `hazing-dev-localdb` de `.claude/launch.json` (puerto 3001). El guard de escritura exime solo a hosts `localhost`/`127.0.0.1`. Esa base **no soporta conexiones concurrentes** (medido: pool de 5 → 31 de 60 queries cortadas con `ECONNRESET`/P1017; pool de 1 → 60/60): las configuraciones locales de `launch.json` llevan `DATABASE_POOL_MAX=1`, que `src/lib/prisma.ts` lee como tope del pool. Sin la variable, el default de `pg` (10), igual que glamify.
+- 2026-09-24 · re-verificación de UX de las correcciones (Sonnet, ~175 k tokens, 96 llamadas, 25 min) → reportó dos crashes (agregar al carrito siempre, `/tienda` intermitente). Diagnóstico en la sesión principal con el log del server: todos P1017 de la base local ante queries en paralelo, no del producto. Corregido con `DATABASE_POOL_MAX` (ver entrada anterior); medido 50/50 requests concurrentes en 200. Los puntos que habían quedado bloqueados se re-verifican aparte.
+- 2026-09-24 · re-verificación de UX de los puntos bloqueados (Sonnet, ~159 k tokens, 69 llamadas, 15 min) → carrito, tope de stock, axe (0 violaciones en 5 combinaciones) OK; foco del drawer a `<body>` y quitar el último filtro sin efecto. E2E del recorrido de compra (Sonnet, ~315 k tokens, 164 llamadas, 40 min) → `tests/e2e/storefront-commerce.spec.ts`, 11 tests. En la sesión principal: el foco caía a `<body>` porque el CTA se deshabilita mientras la acción está pendiente y Chrome le saca el foco (el diagnóstico del agente, `open` fijo en `Dialog.Root`, no era: es a propósito para animar la salida) → `openCart(trigger)`. Lo de los filtros era más general (cualquier cambio de params en `/tienda` con 6+ resultados, intermitente): instrumentando el router de Next se vio que reusaba el `loading.tsx` de la entrada stale y no confirmaba el render → se quitó `tienda/loading.tsx` (§3.11).
+- 2026-09-24 · revisión adversarial de la tanda final (pool local, foco del drawer, sin `tienda/loading.tsx`, hit-slop de swatches medido en 44×44) (Sonnet, ~71 k tokens, 44 llamadas, 7 min) → aprobada sin hallazgos. Cierre 6.1–6.3: juez verde (234 tests), E2E 21/21 tres veces seguidas en serie, gates de three/lenis en 0, JS inicial ≤ 180 kB.

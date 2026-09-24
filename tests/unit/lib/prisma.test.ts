@@ -43,3 +43,59 @@ describe("lib/prisma — singleton perezoso", () => {
     expect(second.prisma).toBe(first.prisma);
   });
 });
+
+describe("lib/prisma — tope del pool (DATABASE_POOL_MAX)", () => {
+  const originalUrl = process.env.DATABASE_URL;
+  const originalMax = process.env.DATABASE_POOL_MAX;
+  const poolConfigs: Array<{ max?: number }> = [];
+
+  beforeEach(() => {
+    vi.resetModules();
+    poolConfigs.length = 0;
+    delete (globalThis as { prisma?: unknown }).prisma;
+    process.env.DATABASE_URL = DUMMY_URL;
+    vi.doMock("@prisma/adapter-pg", async () => {
+      const actual =
+        await vi.importActual<typeof import("@prisma/adapter-pg")>(
+          "@prisma/adapter-pg",
+        );
+      class SpyPrismaPg extends actual.PrismaPg {
+        constructor(...args: ConstructorParameters<typeof actual.PrismaPg>) {
+          poolConfigs.push(args[0] as { max?: number });
+          super(...args);
+        }
+      }
+      return { ...actual, PrismaPg: SpyPrismaPg };
+    });
+  });
+  afterEach(() => {
+    vi.doUnmock("@prisma/adapter-pg");
+    delete (globalThis as { prisma?: unknown }).prisma;
+    if (originalUrl === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = originalUrl;
+    if (originalMax === undefined) delete process.env.DATABASE_POOL_MAX;
+    else process.env.DATABASE_POOL_MAX = originalMax;
+  });
+
+  it("sin la variable deja el default de pg", async () => {
+    delete process.env.DATABASE_POOL_MAX;
+    const { prisma } = await import("@/lib/prisma");
+    void prisma.product;
+    expect(poolConfigs).toHaveLength(1);
+    expect(poolConfigs[0]?.max).toBeUndefined();
+  });
+
+  it("con DATABASE_POOL_MAX=1 limita el pool a una conexión", async () => {
+    process.env.DATABASE_POOL_MAX = "1";
+    const { prisma } = await import("@/lib/prisma");
+    void prisma.product;
+    expect(poolConfigs[0]?.max).toBe(1);
+  });
+
+  it("ignora valores inválidos", async () => {
+    process.env.DATABASE_POOL_MAX = "cero";
+    const { prisma } = await import("@/lib/prisma");
+    void prisma.product;
+    expect(poolConfigs[0]?.max).toBeUndefined();
+  });
+});

@@ -27,6 +27,24 @@ export const CONTACT_WHATSAPP_DISPLAY = "+54 9 2323 52-9931";
 /** Formato wa.me: solo dígitos, con código de país. */
 export const CONTACT_WHATSAPP_URL = "https://wa.me/5492323529931";
 
+/**
+ * [BORRADOR — pendiente de definición de la dueña: política de cambios
+ * (docs/spec/01-negocio.md, decisión pendiente #8) y tabla de medidas real]
+ * Acordeón "Guía de talles" de la PDP (docs/spec/05-direccion-arte.md §7).
+ * Texto genérico y neutral: no inventa una tabla de medidas ni compromisos
+ * de calce que la dueña todavía no definió.
+ */
+export const SIZE_GUIDE_COPY =
+  "Cada prenda muestra el sistema de talles con el que está confeccionada (letras, numérico o talle único). Si tenés dudas sobre cuál te queda mejor, escribinos antes de comprar y te ayudamos a elegir.";
+
+/**
+ * [BORRADOR — pendiente de definición de la dueña: política de cambios,
+ * docs/spec/01-negocio.md decisión pendiente #8]
+ * Acordeón "Envíos y cambios" de la PDP (docs/spec/05-direccion-arte.md §7).
+ */
+export const SHIPPING_AND_RETURNS_COPY =
+  "Hacemos envíos a todo el país desde Luján. El costo y el plazo se calculan según tu código postal antes de confirmar la compra. Para cambios o devoluciones, escribinos y te contamos cómo seguir.";
+
 /** Momento inmersivo "La etiqueta" (docs/spec/05-direccion-arte.md §6). */
 export const SIGNATURE_MOMENT_LABEL = "01 — La marca";
 export const SIGNATURE_MOMENT_TAG_BACK = {

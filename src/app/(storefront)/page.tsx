@@ -9,6 +9,9 @@ import {
   type EditorialLook,
 } from "@/components/home/editorial-story";
 import { HomeSequenceProvider } from "@/components/home/home-sequence-context";
+import { getNewestProducts } from "@/lib/catalog/queries";
+import { productImageUrl } from "@/lib/images";
+import { getEffectivePrice, isOnSale, toNumber } from "@/lib/catalog/pricing";
 
 /**
  * Home coreografiada — sub-fase 5.2 (docs/spec/05-direccion-arte.md §4, los
@@ -16,51 +19,17 @@ import { HomeSequenceProvider } from "@/components/home/home-sequence-context";
  * pone `(storefront)/layout.tsx` (5.1b) — acá van solo los beats 2, 3, 4, 5,
  * 6 y 7.
  *
- * Sin datos reales de catálogo (Fase 6/7 no existe todavía): los arrays de
- * abajo son el mock mínimo que cada sección necesita para montarse — mismo
- * criterio de placeholder que usaba la home provisional de 5.1. Todos los
- * `imageSrc` quedan en `null` a propósito: no hay ni un solo asset A2/A2b/A3/A4
- * de producción todavía (§12, "no hay producción de campaña"), así que cada
- * sección renderiza sus slots reales — es el estado correcto de 5.2 hasta que
- * existan A2b/A3, no un bug de esta página.
+ * NEW IN (beat 4) pasa a leer `getNewestProducts()` en la sub-fase 6.2 (ver
+ * docs/spec/06-storefront.md §3.9). El resto de las secciones (hero,
+ * momento 3D, lookbook, editorial) sigue con el mock mínimo: no hay ni un
+ * solo asset A2/A2b/A3/A4 de producción todavía (§12, "no hay producción de
+ * campaña"), así que cada una renderiza sus slots reales — es el estado
+ * correcto hasta que existan esos assets, no un bug de esta página.
  */
 const FEATURED_KEY_IMAGE_SRC: string | undefined = undefined;
 
-const NEW_IN_ITEMS: NewInItem[] = [
-  {
-    id: "new-in-1",
-    href: "/producto/placeholder-1",
-    name: "Prenda de ejemplo 1",
-    price: 45000,
-    imageSrc: null,
-    imageAlt: "Prenda de ejemplo 1",
-  },
-  {
-    id: "new-in-2",
-    href: "/producto/placeholder-2",
-    name: "Prenda de ejemplo 2",
-    price: 38000,
-    compareAtPrice: 52000,
-    imageSrc: null,
-    imageAlt: "Prenda de ejemplo 2",
-  },
-  {
-    id: "new-in-3",
-    href: "/producto/placeholder-3",
-    name: "Prenda de ejemplo 3",
-    price: 29900,
-    imageSrc: null,
-    imageAlt: "Prenda de ejemplo 3",
-  },
-  {
-    id: "new-in-4",
-    href: "/producto/placeholder-4",
-    name: "Prenda de ejemplo 4",
-    price: 33500,
-    imageSrc: null,
-    imageAlt: "Prenda de ejemplo 4",
-  },
-];
+/** Cantidad de tiles de NEW IN — igual al mock que reemplaza (ver new-in.tsx). */
+const NEW_IN_COUNT = 4;
 
 const LOOKBOOK_LOOKS: LookbookLook[] = Array.from(
   { length: 8 },
@@ -124,7 +93,26 @@ const EDITORIAL_LOOKS: EditorialLook[] = [
   },
 ];
 
-export default function HomePage() {
+// Sin ISR: el layout del storefront lee la cookie del carrito, así que todas
+// sus rutas son dinámicas y un `revalidate` acá no tendría efecto (medido en
+// `pnpm build`, docs/spec/06-storefront.md §3.9).
+
+export default async function HomePage() {
+  const newestProducts = await getNewestProducts(NEW_IN_COUNT);
+  const newInItems: NewInItem[] = newestProducts.map((product) => {
+    const onSale = isOnSale(product);
+    return {
+      id: product.id,
+      href: `/producto/${product.slug}`,
+      name: product.name,
+      price: getEffectivePrice(product),
+      compareAtPrice: onSale ? toNumber(product.compareAtPrice) : undefined,
+      imageSrc: productImageUrl(product.images[0]),
+      imageSrcHover: productImageUrl(product.images[1]),
+      imageAlt: product.name,
+    };
+  });
+
   return (
     // El hero siempre renderiza el marco de la imagen clave (con la foto A3
     // real cuando exista, o con su slot mientras tanto), así que el beat 3
@@ -136,7 +124,7 @@ export default function HomePage() {
       {/* Beat 3 */}
       <HeroToCommerce />
       {/* Beat 4 */}
-      <NewInFlightTarget items={NEW_IN_ITEMS} />
+      <NewInFlightTarget items={newInItems} />
       {/* Beat 5 — momento inmersivo "La etiqueta" (sub-fase 5.3, ya cerrada) */}
       <SignatureMoment />
       {/* Beat 6 */}
