@@ -8,7 +8,7 @@
  * con srcset — cero costo de runtime y cero dependencia de Cloudflare Images".
  *
  * Es un script de REPO, no de runtime: no lo importa ninguna ruta de la app y NO
- * se cablea todavía a `pnpm build` ni a `build:worker` (eso se hace cuando existan
+ * se cablea todavía a `pnpm build` (eso se hace cuando existan
  * los assets reales de campaña — ver §12, "assets pendientes"). Por ahora se corre
  * a mano.
  *

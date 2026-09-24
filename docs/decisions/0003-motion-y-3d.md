@@ -2,6 +2,8 @@
 
 Fecha: 2026-09-03 · Estado: **propuesta** (se acepta junto con [`docs/spec/05-direccion-arte.md`](../spec/05-direccion-arte.md))
 
+> **Enmendada el 2026-09-24 por [ADR 0005](0005-deploy-en-vercel.md) (deploy en Vercel):** ya no existe `.open-next/worker.js` ni `build:worker`. El gate pasa a `.next/server` después de `pnpm build` (en CI): `WebGLRenderer` y `lenis-smooth` tienen que dar 0 archivos. El marcador viejo de lenis (`class Lenis`) no sobrevivía al minificado y ese control nunca podía fallar. El bloqueo de EPERM de abajo desaparece: el build local es el build real.
+
 ## Problema
 
 La Fase 5 redefinida pide coreografía ligada al scroll (secciones pineadas, scrub, transiciones por máscara, FLIP entre secciones), un único momento WebGL protagonista y sensación de scroll con peso — sobre Next.js 15 App Router + React 19, desplegado en Cloudflare Workers (worker ≤ 3 MB gz en plan Free) y con targets duros de performance (LCP ≤ 2.5 s, INP ≤ 200 ms, CLS ≤ 0.1). Hay que elegir con qué se anima, cómo se carga y qué queda fuera del worker.

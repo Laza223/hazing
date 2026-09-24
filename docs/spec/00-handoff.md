@@ -10,7 +10,7 @@ Código y patrones portables sin cambios de lógica (solo naming/branding):
 
 | Módulo | Path de referencia en glamify-makeup | Nota |
 |---|---|---|
-| Cliente DB por-request (Workers) | `src/lib/prisma.ts` | Copiar exacto — `cache()` de React + Proxy perezoso, soporta `env.HYPERDRIVE` o `DATABASE_URL` |
+| Cliente DB | `src/lib/prisma.ts` | Copiar exacto — singleton perezoso en `globalThis` detrás de un Proxy (versión post-Vercel de glamify, ADR 0005; la versión por-request de Workers quedó obsoleta) |
 | MercadoPago Checkout Pro + webhook | `src/lib/payments/*` | Adapter MP, validación HMAC `x-signature`, idempotencia por `mpPaymentId` — copiar exacto |
 | Máquina de estados de pedido | `src/lib/orders/*` | `OrderStatus`/`PaymentStatus`/`ShipmentStatus`, expiry job — copiar exacto |
 | Auth y guards | `src/lib/admin/*` (`requireAdmin`) + Customer via Supabase Auth | Copiar patrón exacto |
@@ -20,7 +20,7 @@ Código y patrones portables sin cambios de lógica (solo naming/branding):
 | Email transaccional (Resend) | `src/lib/email/*` | Copiar estructura, reescribir templates con branding Hazing |
 | Botón de Arrepentimiento (Res. 424/2020) | `/arrepentimiento` + `RetractionRequest` (seq autoincrement `ARR-NNNNNN`) | Obligatorio, no es específico de maquillaje — copiar exacto |
 | Guard de escritura en DB (`prod-write-guard.ts`) | `scripts/prod-write-guard.ts` | Copiar exacto |
-| Cron triggers (Workers) | `worker.ts` | Copiar patrón (abandoned cart, order expiry) |
+| Cron horario | `src/app/api/cron/route.ts` + `vercel.json` | Copiar patrón (abandoned cart, order expiry). Antes era `worker.ts` en Workers (ADR 0005) |
 
 ## 2. Qué cambia
 
@@ -60,6 +60,7 @@ Contexto de negocio confirmado: **la dueña de Hazing es la cuñada de Lazar**, 
 
 1. **Cuentas e infraestructura** — RESUELTA
    Todo nuevo y 100% separado de glamify: cuenta de GitHub nueva, proyecto Supabase nuevo, cuenta Cloudflare nueva. Cero recursos compartidos, cero credenciales compartidas.
+   > **Actualizado el 2026-09-24 por [ADR 0005](../decisions/0005-deploy-en-vercel.md):** hosting en la cuenta Vercel Pro de Lazar, base en un proyecto Supabase nuevo dentro de la organización de Lazar y repo en el GitHub `Laza223` — como glamify. Sigue sin compartirse nada con glamify a nivel proyecto (base, storage, auth, variables y credenciales propias); lo compartido es la cuenta y la facturación de Lazar.
 
 2. **Paleta de marca** — RESUELTA
    Blanco y negro, con grises como rango intermedio. Sin color de acento cromático.
@@ -78,7 +79,7 @@ Contexto de negocio confirmado: **la dueña de Hazing es la cuñada de Lazar**, 
    Nota: siendo la cuñada la dueña, lo más probable es que sea el CUIL de ella.
 
 6. **Dominio** — PENDIENTE
-   Bloquea: deploy final y configuración de DNS. Lazar lo pasa ni bien lo compre. No bloquea desarrollo (se trabaja con el subdominio `.workers.dev`).
+   Bloquea: deploy final y configuración de DNS. Lazar lo pasa ni bien lo compre. No bloquea desarrollo (se trabaja con el subdominio `.vercel.app`).
 
 7. **Esquema de talles** — PENDIENTE (a definir en la sesión nueva)
    Bloquea: el schema de `ProductVariant` y por lo tanto todo el catálogo. **Es la primera decisión a cerrar en la sesión nueva.**
@@ -96,10 +97,10 @@ Contexto de negocio confirmado: **la dueña de Hazing es la cuñada de Lazar**, 
 ## 4. Stack (idéntico a glamify-makeup)
 
 - Next.js 15 (App Router) + React 19 + TypeScript strict · shadcn/ui + Tailwind CSS v3.4 · Vitest + Playwright
-- Deploy: Cloudflare Workers vía `@opennextjs/cloudflare` con `nodejs_compat` (NO Vercel)
-- PostgreSQL vía Supabase (Auth + Storage) · Prisma ORM con driver adapter (`@prisma/adapter-pg`) + `@prisma/client/wasm`
+- Deploy: Vercel, como glamify desde el 2026-09-12 (ADR 0005 — el original decía Cloudflare Workers)
+- PostgreSQL vía Supabase (Auth + Storage) · Prisma ORM con driver adapter (`@prisma/adapter-pg`)
 - MercadoPago Checkout Pro (tarjeta + dinero en cuenta; `excluded_payment_types: ["ticket","atm"]`)
-- Resend (email transaccional) · PostHog (analítica) · Cron Triggers en `worker.ts`
+- Resend (email transaccional) · PostHog (analítica) · Vercel Cron horario → `/api/cron`
 - Envío: sin API — tabla `ShippingZone` como única fuente (ver §2.2)
 
 Invariantes de dominio que se heredan sin cambios: montos ARS `Decimal(12,2)` (nunca float/centavos), timestamps UTC, UUIDs como PK, enums en inglés británico (`cancelled` doble L), snapshots transaccionales en `OrderItem`, stock solo en variantes, botón de Arrepentimiento obligatorio (Ley 24.240 / Res. 424/2020), Ley 25.326 datos personales.
@@ -112,7 +113,7 @@ Mismos de glamify + los nuevos de este proyecto:
 - Retiro en persona: a definir en §3 si aplica distinto que glamify (glamify es 100% envío).
 - Emojis como íconos: prohibido (Lucide SVG). Dark mode: a decidir como parte de la identidad de marca (glamify lo prohíbe por decisión propia, no es invariante universal).
 - Stock falso / urgencia falsa: prohibido (ley de consumidor, igual en cualquier ecommerce AR).
-- Deploy fuera de Cloudflare Workers: descartado salvo ADR nuevo.
+- Deploy fuera de Vercel: descartado salvo ADR nuevo (era "fuera de Cloudflare Workers"; cambió con ADR 0005).
 - **Nuevo — API de envío (MiCorreo/PaqAr/Zipnova) en v1: descartado**, ver §2.2.
 - **Nuevo — Facturación automática en v1: descartada**, ver §2.1 y §2.4.
 
@@ -151,13 +152,13 @@ Copiar exacto de glamify, solo cambiar credenciales (`MP_*` propios). Desarrolla
 `ShippingZone` con la tabla de glamify como base (mismo origen, CP 6700), ajustando valores al alza por peso/volumen de ropa. Sin adapter de API. Botón de "marcar despachado" + campo de tracking freeform en el panel.
 
 **Fase 10 — Deploy**
-GitHub Actions `quality` + `deploy` a Cloudflare Workers (cuenta nueva). Secrets propios vía `wrangler secret put`. Dominio cuando esté comprado (§3.6); hasta entonces, `.workers.dev`.
+GitHub Actions `quality` + `deploy` a Vercel con Vercel CLI + token, calcado de glamify (ADR 0005). Secrets propios en las Environment Variables del proyecto de Vercel. Dominio cuando esté comprado (§3.6); hasta entonces, `.vercel.app`.
 
 ## 7. Qué NO hacer en v1 (fuera de scope explícito)
 
 - Integración de API de envío (MiCorreo, PaqAr, Correo Argentino, Mercado Envíos API) — despacho 100% manual.
 - Facturación automática o integrada — diferida, ver §2.1.
-- Compartir CUALQUIER recurso con glamify-makeup: ni base Supabase, ni cuenta Cloudflare, ni GitHub, ni credenciales. Todo separado (§3.1).
+- Compartir CUALQUIER recurso con glamify-makeup: ni base Supabase, ni proyecto de hosting, ni storage, ni credenciales. Todo separado a nivel proyecto (§3.1; la cuenta de Vercel/Supabase/GitHub de Lazar sí es la misma, ADR 0005).
 - Heredar el design system rosa de glamify. Blanco/negro/grises, según §8.
 - Improvisar el diseño "a ojo" en vez de seguir el brief de §8.
 

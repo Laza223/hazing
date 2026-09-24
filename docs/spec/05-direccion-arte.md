@@ -187,7 +187,7 @@ Prohibido (del brief): spring con overshoot, animar todo, scroll hijacking agres
 
 ## 10. Performance
 
-Targets del brief como presupuesto duro (se miden con Lighthouse en `preview:worker`, móvil simulado, y se anotan en el cierre de cada sub-fase):
+Targets del brief como presupuesto duro (se miden con Lighthouse sobre `pnpm build` + `pnpm start` — desde el ADR 0005 es el mismo build que corre Vercel —, móvil simulado, y se anotan en el cierre de cada sub-fase):
 
 | Métrica | Target | Cómo se logra |
 |---|---|---|
@@ -195,7 +195,7 @@ Targets del brief como presupuesto duro (se miden con Lighthouse en `preview:wor
 | INP | ≤ 200 ms | GSAP core + ScrollTrigger + Flip ≈ 50 KB gz en el bundle del storefront; three/R3F ≈ 400 KB gz en un chunk lazy solo de la home; nada de trabajo en main thread antes de la primera interacción. |
 | CLS | ≤ 0.1 | `aspect-ratio` en todo contenedor de imagen/video; fuentes con `display: swap` + `size-adjust` (lo hace `next/font`); la entrada de marca es un overlay, no desplaza layout. |
 
-Presupuestos de bundle: JS inicial de cualquier ruta del storefront ≤ 220 KB gz; chunk 3D ≤ 450 KB gz; worker de Cloudflare sin three ni lenis (verificado con grep en `.open-next/worker.js` — límite del plan Free: 3 MB gz). Los números medidos del spike están en el ADR 0003. Atención: `pnpm build:worker` no corre en la máquina actual (EPERM de symlink de Windows, también sin cambios), así que el gate del worker se agrega al job `quality` de CI en 5.1 y se mide ahí.
+Presupuestos de bundle: JS inicial de cualquier ruta del storefront ≤ 220 KB gz; chunk 3D ≤ 450 KB gz; bundle del servidor sin three ni lenis (grep de `WebGLRenderer` y `lenis-smooth` en `.next/server`, gate del job `quality` de CI). Los números medidos del spike están en el ADR 0003. Hasta el 2026-09-24 el gate se medía sobre el worker de Cloudflare (`.open-next/worker.js`), que no se podía construir en Windows; con el paso a Vercel (ADR 0005) ese bloqueo desaparece.
 
 Imágenes: los assets de campaña (estáticos, `public/`) se pre-codifican en build a AVIF + WebP en 4 anchos (640 / 1080 / 1600 / 2400) con `sharp` (script de repo, no runtime), y se sirven con `srcset` — cero costo de runtime y cero dependencia de Cloudflare Images. Las imágenes de producto (Supabase Storage) se resuelven en Fase 6/7; el precedente propio es el compresor en subida de glamify (`src/lib/images/compress.ts`), que evita pagar Cloudflare Images. Video: MP4 H.264 + WebM/AV1, poster obligatorio, `muted playsinline autoplay loop preload="none"` fuera del hero.
 
@@ -235,7 +235,7 @@ Orden pensado para no depender de assets al principio y atacar primero el riesgo
 | **5.4 Performance y mobile** ✅ cerrada 2026-09-04 | Medición real con Playwright + CPU 4x (no Lighthouse: `preview:worker` sigue bloqueado en Windows, ver §14.9), axe en 8 estados, recorrido por teclado, targets táctiles, reduced motion. Commit `8965ad8`. Siete bloqueantes corregidos, incluido un crash de React reproducible. Números medidos en §13.1. | 5.1–5.3 | 14 archivos |
 | PDP | Se implementa en Fase 6 con datos reales, siguiendo §7. | Fase 6 | — |
 
-Cada sub-fase cierra con: juez del repo en verde (`format:check`, `lint`, `typecheck`, `test`), `pnpm build:worker` sin three/lenis en el worker, flujo corrido en el navegador por un verificador de UX con contexto fresco, revisión adversarial del diff y gate de release. Sin los cuatro no está cerrada.
+Cada sub-fase cierra con: juez del repo en verde (`format:check`, `lint`, `typecheck`, `test`), `pnpm build` sin three/lenis en `.next/server` (hasta el ADR 0005 era `pnpm build:worker` sobre el worker), flujo corrido en el navegador por un verificador de UX con contexto fresco, revisión adversarial del diff y gate de release. Sin los cuatro no está cerrada.
 
 ### 13.1 Mediciones reales (2026-09-04, build de producción)
 
@@ -267,7 +267,7 @@ Tomadas el 2026-09-03/04:
 6. **Copy (A7):** delegado a este equipo ("dale"). Borrador en `src/lib/content/copy.ts`, marcado `[BORRADOR]` — la dueña lo edita cuando quiera, es un solo archivo.
 7. **Contacto (A8):** confirmado — Instagram `hazing.ok`, WhatsApp `+54 9 2323 52-9931`.
 8. **Sección invertida (fondo `ink`) solo para el momento 3D:** aprobada junto con "La etiqueta".
-9. **Build del worker en local:** sigue bloqueado por el symlink de Windows (no es Docker — es un permiso del sistema operativo para crear enlaces simbólicos, que pide `next build` en modo standalone). No se activa desde acá (cambiar configuración del sistema es una acción que le corresponde a Lazar, no a este asistente). El gate del worker se mide en CI (Linux) desde esta sub-fase — ver `.github/workflows/ci.yml`.
+9. **Build del worker en local:** sigue bloqueado por el symlink de Windows (no es Docker — es un permiso del sistema operativo para crear enlaces simbólicos, que pide `next build` en modo standalone). No se activa desde acá (cambiar configuración del sistema es una acción que le corresponde a Lazar, no a este asistente). El gate del worker se mide en CI (Linux) desde esta sub-fase — ver `.github/workflows/ci.yml`. **Resuelto el 2026-09-24 por el ADR 0005:** sin Workers no hay build standalone ni symlinks; `pnpm build` corre en local.
 
 ### 14.1 Lo que sigue abierto al cerrar la Fase 5 (2026-09-04)
 
@@ -279,7 +279,7 @@ Ninguno bloquea el código; todos bloquean que la home se vea como la describe e
 4. **`sharp` como dependencia de desarrollo.** El script de pre-codificación de imágenes (`scripts/encode-images.mjs`, §10) está escrito pero no puede correr sin él. Agregarlo toca `package.json`, que necesita tu OK.
 5. **Newsletter del footer (beat 8).** Declarado en el §4 y no implementado: no hay backend de lista de correo todavía (llega con Resend).
 6. **Favicon y Open Graph.** El §12 los lista como uso del asset A1 y no existen todavía.
-7. **Lighthouse sobre el worker.** Ver §14.9: hoy se mide con Playwright sobre el build de Next, no sobre el Worker.
+7. **Lighthouse.** Ver §14.9: se medía con Playwright porque el worker no se podía construir en Windows. Con Vercel (ADR 0005) el build local es el real, así que Lighthouse ya se puede correr acá; queda pendiente hacerlo.
 
 ## 15. Ledger de delegaciones de esta fase
 

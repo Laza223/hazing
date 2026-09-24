@@ -1,10 +1,10 @@
 # 03 — Técnica
 
-Fuente: [`00-handoff.md`](00-handoff.md) §1, §4, §6. ADRs: [0001](../decisions/0001-esquema-talles.md) (talles), [0002](../decisions/0002-prisma-en-workers.md) (Prisma en Workers).
+Fuente: [`00-handoff.md`](00-handoff.md) §1, §4, §6. ADRs: [0001](../decisions/0001-esquema-talles.md) (talles), [0002](../decisions/0002-prisma-en-workers.md) (Prisma), [0005](../decisions/0005-deploy-en-vercel.md) (deploy en Vercel).
 
 ## Stack (idéntico a glamify-makeup salvo lo anotado)
 
-Next.js 15 (App Router) + React 19 + TypeScript strict · shadcn/ui + Tailwind CSS v3.4 · Vitest + Playwright · Deploy Cloudflare Workers vía `@opennextjs/cloudflare` (`nodejs_compat`, NO Vercel) · PostgreSQL vía Supabase (Auth + Storage) · Prisma ORM + `@prisma/adapter-pg` (ver ADR 0002) · MercadoPago Checkout Pro · Resend · PostHog · Cron Triggers en `worker.ts`.
+Next.js 15 (App Router) + React 19 + TypeScript strict · shadcn/ui + Tailwind CSS v3.4 · Vitest + Playwright · Deploy en Vercel, cuenta Pro de Lazar (ADR 0005, reemplaza a Cloudflare Workers como hizo glamify) · PostgreSQL vía Supabase (Auth + Storage), proyecto propio en la organización de Lazar · Prisma ORM + `@prisma/adapter-pg` (ver ADR 0002) · MercadoPago Checkout Pro · Resend · PostHog · Vercel Cron horario → `src/app/api/cron/route.ts`.
 
 Desviación de versión (no de patrón): `pnpm@11.1.2` local (glamify pinea `8.15.0`) — CI fija su propia versión, no hay drift entre entornos.
 
@@ -22,7 +22,7 @@ Montos ARS `Decimal(12,2)` (nunca float/centavos) · timestamps UTC, conversión
 
 | Módulo | Path en glamify | Estado en Hazing |
 |---|---|---|
-| Cliente DB por-request | `src/lib/prisma.ts` | Copiado exacto |
+| Cliente DB | `src/lib/prisma.ts` | Copiado exacto; el 2026-09-24 pasó de por-request (Workers) a singleton perezoso, igual que glamify (ADR 0005) |
 | MercadoPago Checkout Pro + webhook | `src/lib/payments/*` | Copiado, `statement_descriptor`/branding → HAZING |
 | Checkout + webhook de pedido | `src/lib/orders/checkout-service.ts`, `webhook-service.ts` | Adaptado: sin combos, sin `weightGr`, sin auto-import a MiCorreo (delta #2) — el Shipment queda `pending` para carga manual |
 | Máquina de estados + expiry | `src/lib/orders/state-machine.ts`, `expiry.ts`, `expiry-job.ts`, `stock.ts`, `order-number.ts` | Copiado/adaptado (prefijo `HZG-`, sin rama de combo en `stock.ts`) |
@@ -32,7 +32,7 @@ Montos ARS `Decimal(12,2)` (nunca float/centavos) · timestamps UTC, conversión
 | Catálogo (pricing/types) | `src/lib/catalog/pricing.ts`, `types.ts` | Copiado exacto (dependencia transitiva de cart/checkout) |
 | Email transaccional | `src/lib/email/resend.ts`, `templates.ts` | Estructura copiada, templates reescritos con branding Hazing (sin rosa, sin emoji) |
 | Guard de escritura en DB | `scripts/prod-write-guard.ts` | Copiado exacto |
-| Cron triggers | `worker.ts`, `src/lib/cron/deps.ts` | Copiado/wireado (abandoned cart + order expiry, horario) |
+| Cron horario | `src/app/api/cron/route.ts`, `vercel.json` | Copiado de glamify post-Vercel (abandoned cart + order expiry, protegido con `CRON_SECRET`). Reemplazó a `worker.ts` + `src/lib/cron/deps.ts` (ADR 0005) |
 | Cotización de envío | — (no existe en glamify) | **Nuevo**: `src/lib/shipping/quote.ts`, ver delta #2 arriba |
 
 Pendiente para fases siguientes (no es que falte copiar, es que no es Fase 4): `src/lib/legal/retraction/*` (Botón de Arrepentimiento), `src/lib/reviews/*`, `src/lib/customer/*`, el Route Handler `/api/webhooks/mercadopago` y toda la UI (Fases 6-9).

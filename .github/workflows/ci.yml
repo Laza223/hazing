@@ -41,26 +41,22 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Build worker (Cloudflare)
-        # Con env de placeholder — no hay secretos reales en Fase 5. Sirve para
-        # medir el bundle del worker en Linux, ya que en Windows local
-        # pnpm build:worker falla por EPERM de symlink (ver ADR 0003).
-        run: pnpm build:worker
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: "https://placeholder.supabase.co"
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: "placeholder"
-
-      - name: Gate — three.js y lenis fuera del worker
-        # Ver docs/decisions/0003-motion-y-3d.md: three/R3F/lenis solo se cargan
-        # client-side vía dynamic(ssr:false) desde src/components/immersive/*.
-        # Si aparecen acá, algo se está importando fuera de esa frontera.
+      - name: Gate — three.js y lenis fuera del servidor
+        # Ver docs/decisions/0003-motion-y-3d.md y 0005-deploy-en-vercel.md:
+        # three/R3F/lenis solo se cargan client-side vía dynamic(ssr:false)
+        # desde src/components/immersive/* y src/lib/motion/*. Si aparecen en
+        # .next/server, algo se está importando fuera de esa frontera.
+        # Marcadores elegidos porque sobreviven al minificado: `WebGLRenderer`
+        # y `lenis-smooth` (clase CSS que Lenis agrega al <html>) aparecen en
+        # .next/static. El marcador anterior de lenis ("class Lenis") no
+        # aparecía ni en el chunk del cliente, así que ese gate nunca podía fallar.
         run: |
-          if grep -q "WebGLRenderer" .open-next/worker.js; then
-            echo "three.js filtró al bundle del worker — revisar imports fuera de src/components/immersive/*" >&2
+          if grep -rlq "WebGLRenderer" .next/server; then
+            echo "three.js filtró al bundle del servidor — revisar imports fuera de src/components/immersive/*" >&2
             exit 1
           fi
-          if grep -qi "class Lenis" .open-next/worker.js; then
-            echo "lenis filtró al bundle del worker — revisar imports fuera de src/lib/motion/*" >&2
+          if grep -rlq "lenis-smooth" .next/server; then
+            echo "lenis filtró al bundle del servidor — revisar imports fuera de src/lib/motion/*" >&2
             exit 1
           fi
-          echo "OK: three.js y lenis no están en .open-next/worker.js"
+          echo "OK: three.js y lenis no están en .next/server"

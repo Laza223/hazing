@@ -2,6 +2,8 @@
 
 **Estado:** Heredada de `glamify-makeup`, sin cambios · **Bucket:** C-STACK (excepción documentada)
 
+> **Enmendada el 2026-09-24 por [ADR 0005](0005-deploy-en-vercel.md):** el deploy pasó a Vercel. El motivo de fondo de este ADR (Workers no corre los drivers de Drizzle) ya no aplica y el cliente por-request descrito abajo se reemplazó por un singleton perezoso. Prisma + `@prisma/adapter-pg` se mantiene igual, como en glamify: cambiar de ORM con el schema y los servicios ya construidos no aporta nada.
+
 ## Problema
 
 El stack default del OS (`stack-defaults-ts-next-pg-drizzle.md`) especifica Drizzle ORM sobre Postgres. Cloudflare Workers (el runtime elegido, ver §2.4/§5 del handoff — deploy fuera de Workers descartado salvo ADR nuevo) no puede correr el driver `postgres-js` de Drizzle ni el cliente Node-only de Supabase: el runtime de Workers no expone sockets TCP persistentes de la forma que esos clientes asumen.

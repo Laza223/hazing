@@ -45,7 +45,11 @@ coverage/
 .turbo/
 *.pem
 
-# Cloudflare (OpenNext + Wrangler)
+# Vercel
+.vercel/
+
+# Restos locales de Cloudflare (antes del ADR 0005): cache de Miniflare y build
+# de OpenNext que pueden seguir en disco de corridas viejas
 .open-next/
 .wrangler/
 

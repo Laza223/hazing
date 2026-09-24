@@ -1,9 +1,7 @@
-import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Prisma con driver adapter en Cloudflare Workers — ver ADR 0002 (docs/decisions/0002-prisma-en-workers.md).
+  // Prisma con driver adapter fuera del bundle del servidor — ver ADR 0002 y ADR 0005.
   serverExternalPackages: [
     "@prisma/client",
     ".prisma/client",
@@ -19,6 +17,3 @@ const nextConfig = {
 };
 
 export default nextConfig;
-
-// Habilita getCloudflareContext() durante `next dev` (no-op fuera de dev).
-initOpenNextCloudflareForDev();

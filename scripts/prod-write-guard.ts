@@ -4,7 +4,7 @@ import { createInterface } from "node:readline/promises";
  * Confirmación interactiva obligatoria antes de que un script local mute datos.
  *
  * Dev y producción comparten la MISMA base (mismo DATABASE_URL en .env/.env.local
- * que en wrangler.jsonc de prod) — no hay forma de distinguirlas por URL ni por
+ * que en las Environment Variables de Vercel) — no hay forma de distinguirlas por URL ni por
  * NODE_ENV. Esta es la barrera real: mostrar contra qué host se va a escribir y
  * obligar a una persona a leerlo y confirmarlo a mano, tipeando el host exacto.
  *

@@ -44,7 +44,7 @@ Heredados de glamify + nuevos de Hazing — ver [`00-handoff.md` §5](00-handoff
 - Reembolsos automáticos por API: descartado, manual + registro admin.
 - Emojis como íconos: prohibido (Lucide SVG).
 - Stock falso / urgencia falsa: prohibido.
-- Deploy fuera de Cloudflare Workers: descartado salvo ADR nuevo.
+- Deploy fuera de Vercel: descartado salvo ADR nuevo (era Cloudflare Workers hasta el ADR 0005, 2026-09-24).
 - API de envío (MiCorreo/PaqAr/Zipnova) en v1: descartado.
 - Facturación automática en v1: descartada.
 - Popups de descuento al entrar, badges rojos, countdowns de urgencia: prohibidos (§8.8).

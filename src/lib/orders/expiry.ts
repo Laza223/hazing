@@ -8,7 +8,7 @@ export interface ExpirableOrder {
 
 /**
  * IDs de pedidos a autocancelar: pending_payment con más de `hours` horas.
- * El trigger (Cloudflare Cron) se cablea en worker.ts; esta lógica + el job quedan listos.
+ * El trigger es el cron horario de `src/app/api/cron/route.ts` (Vercel Cron, ADR 0005).
  */
 export function findExpiredOrderIds(
   orders: ExpirableOrder[],

@@ -1,11 +1,11 @@
 # Hazing
 
-Ecommerce de ropa femenina — Next.js 15 + Supabase + Prisma + **Cloudflare Workers**.
+Ecommerce de ropa femenina — Next.js 15 + Supabase + Prisma + **Vercel**.
 Fuente de verdad del producto: [`docs/spec/`](docs/spec/). Decisiones de arquitectura: [`docs/decisions/`](docs/decisions/).
 
 ## Stack
 
-Next.js 15 (App Router) · React 19 · TypeScript strict · Tailwind 3 · shadcn/ui · Prisma 6 + `@prisma/adapter-pg` (ver [ADR 0002](docs/decisions/0002-prisma-en-workers.md)) · Supabase (Postgres/Auth/Storage) · Cloudflare Workers vía `@opennextjs/cloudflare` · Vitest · Playwright.
+Next.js 15 (App Router) · React 19 · TypeScript strict · Tailwind 3 · shadcn/ui · Prisma 6 + `@prisma/adapter-pg` (ver [ADR 0002](docs/decisions/0002-prisma-en-workers.md)) · Supabase (Postgres/Auth/Storage) · Vercel ([ADR 0005](docs/decisions/0005-deploy-en-vercel.md)) · Vitest · Playwright.
 
 ## Desarrollo
 
@@ -21,11 +21,11 @@ pnpm dev                     # http://localhost:3000
 - `pnpm typecheck` / `pnpm lint` / `pnpm test` / `pnpm test:e2e`
 - `pnpm format:check` — verificar formato (usar antes de `format`, que reescribe)
 - `./scripts/audit-verify.sh` — juez de verificación (los 4 anteriores en orden)
-- `pnpm build:worker` / `pnpm deploy` — build y deploy a Cloudflare Workers
+- `pnpm build` + `pnpm start` — build de producción local (el mismo que corre Vercel)
 
 ## Convenciones
 
 - Dinero: `Decimal(12,2)` ARS. Estados en inglés británico (`cancelled`).
 - Timestamps UTC; conversión a ART en el front.
-- Secrets solo en `.env.local` / `wrangler secret` (nunca en git).
+- Secrets solo en `.env.local` / Environment Variables de Vercel (nunca en git).
 - Ver [`CLAUDE.md`](CLAUDE.md) para el detalle completo de convenciones e invariantes.

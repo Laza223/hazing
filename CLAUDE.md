@@ -4,7 +4,7 @@ Guía para Claude Code en este repositorio.
 
 # Hazing
 
-Ecommerce B2C de ropa femenina para Argentina (Luján / envíos a todo el país). Stack serverless Next.js 15 en Cloudflare Workers + Supabase Postgres vía Prisma adapter. Blanco y negro, "hiper mega premium" — ver §8 del handoff, resumido abajo.
+Ecommerce B2C de ropa femenina para Argentina (Luján / envíos a todo el país). Stack serverless Next.js 15 en Vercel + Supabase Postgres vía Prisma adapter ([ADR 0005](docs/decisions/0005-deploy-en-vercel.md)). Blanco y negro, "hiper mega premium" — ver §8 del handoff, resumido abajo.
 
 Arquitectura calcada de `glamify-makeup` (otro ecommerce propio, en producción con plata real), con tres deltas: sin facturación en v1, envío 100% manual (sin API de courier), catálogo de ropa (talle + color en vez de tono). Fuente de verdad del producto: [`docs/spec/`](docs/spec/) (negocio → funcional → técnica → calidad, basados en `docs/spec/00-handoff.md`). Decisiones de arquitectura: [`docs/decisions/`](docs/decisions/).
 
@@ -21,22 +21,21 @@ pnpm test           # tests unitarios y de integración con Vitest
 
 Resto:
 
-- `pnpm dev` — localhost:3000 · `pnpm dev:worker` / `preview:worker` — preview Wrangler en `:8771`
-- `pnpm build` / `build:worker` · `pnpm deploy` — `build:worker` + `wrangler deploy`
+- `pnpm dev` — localhost:3000 · `pnpm build` + `pnpm start` — build de producción local (es el mismo build que corre Vercel; sirve para medir bundle y Lighthouse)
 - `pnpm test:watch` · `pnpm test:e2e` — Playwright E2E (`@axe-core/playwright` para a11y)
 - `pnpm db:migrate` — `prisma migrate dev` (sin aplicar todavía, ver Fase 3) · `pnpm db:push` · `pnpm db:studio` · `pnpm db:seed` (se agrega cuando haya seed real)
-- **CI:** GitHub Actions corre `quality` en cada push/PR a `main`. `deploy` se agrega en Fase 10.
+- **CI:** GitHub Actions corre `quality` en cada push/PR a `main` (incluye el gate de three.js/lenis fuera de `.next/server`). `deploy` se agrega en Fase 10: Vercel CLI + token, atrás del gate, calcado de glamify.
 - **Guard de escritura en DB:** `scripts/prod-write-guard.ts` (copiado de glamify) — scripts mutadores exigen tipear el host por terminal interactiva.
 
 ## Stack
 
 - Next.js 15 (App Router) + React 19 + TypeScript strict · shadcn/ui + Tailwind CSS v3.4 · Vitest + Playwright
-- **Deploy:** Cloudflare Workers vía `@opennextjs/cloudflare` con `nodejs_compat` (NO Vercel).
-- **PostgreSQL vía Supabase** (Auth + Storage) · **Prisma ORM** con driver adapter (`@prisma/adapter-pg`) — ver [ADR 0002](docs/decisions/0002-prisma-en-workers.md) para por qué Prisma y no Drizzle (el default del stack propio) en este runtime.
-- **Conexión DB por-request:** en Workers un socket TCP no se comparte entre requests — `src/lib/prisma.ts` (copiado exacto de glamify) crea el cliente por-request vía `cache()` de React + `Proxy` perezoso.
+- **Deploy:** Vercel, cuenta Pro de Lazar, proyecto separado de glamify ([ADR 0005](docs/decisions/0005-deploy-en-vercel.md), 2026-09-24 — reemplaza a Cloudflare Workers). Base: proyecto Supabase propio de Hazing en la organización de Lazar. Nada compartido con glamify a nivel proyecto.
+- **PostgreSQL vía Supabase** (Auth + Storage) · **Prisma ORM** con driver adapter (`@prisma/adapter-pg`), igual que glamify — ver [ADR 0002](docs/decisions/0002-prisma-en-workers.md) y ADR 0005.
+- **Cliente DB:** `src/lib/prisma.ts` es un singleton **perezoso** en `globalThis` detrás de un `Proxy` (calcado de glamify). Nunca construirlo al importar el módulo: `next build` importa los Route Handlers sin ejecutarlos y rompería sin `DATABASE_URL`.
 - **MercadoPago Checkout Pro:** `src/lib/payments/*` + `src/lib/orders/checkout-service.ts`/`webhook-service.ts` listos como librería (pagos instantáneos, efectivo/offline excluido, webhook con firma HMAC + idempotencia por `mpPaymentId`). El Route Handler `/api/webhooks/mercadopago` y la UI de checkout se cablean en Fase 8.
 - **Envíos:** sin API (delta vs. glamify) — `src/lib/shipping/quote.ts` (módulo nuevo, no existe en glamify) cotiza SOLO contra `ShippingZone` activa por provincia/rango de CP; sin match, tira error explícito (no hay fallback). `ShipmentStatus` avanza a mano desde el admin ("marcar despachado" + tracking freeform, Fase 9).
-- **Resend:** email transaccional (`src/lib/email/*`, templates con branding Hazing sin rosa/emoji) · **PostHog:** analítica (pendiente, Fase 6+) · **Cron Triggers:** en `worker.ts` (abandoned cart + order expiry, wireados).
+- **Resend:** email transaccional (`src/lib/email/*`, templates con branding Hazing sin rosa/emoji) · **PostHog:** analítica (pendiente, Fase 6+) · **Cron:** Vercel Cron horario (`vercel.json`) → `src/app/api/cron/route.ts`, protegido con `Authorization: Bearer $CRON_SECRET` (abandoned cart + order expiry).
 
 ## Arquitectura del código
 
@@ -44,8 +43,8 @@ Patrón: **Next.js App Router + servicios desacoplados en `src/lib/*`**. La lóg
 
 - `src/app/(storefront)/*` — Storefront: home, `/tienda`, `/producto/[slug]`, `/carrito`, `/checkout`, `/cuenta`, `/ingresar`, `/arrepentimiento`, páginas legales/institucionales.
 - `src/app/admin/*` — Panel admin: `/admin/login`, `/admin/(panel)` (`/pedidos`, `/productos`, `/categorias`, `/cupones`, `/resenas`).
-- `src/app/api/*` — Route Handlers exclusivamente para webhooks (`/api/webhooks/mercadopago`), callbacks de auth, sitemap/robots.
-- `src/lib/*` — Dominios: `orders/`, `payments/`, `cart/`, `catalog/`, `admin/`, `coupons/`, `email/`, `supabase/`, `prisma.ts`, `cron/`. `shipping/quote.ts` es el único archivo de `shipping/` — cotiza por `ShippingZone`, sin adapter de courier (delta vs. glamify, que tiene un módulo `shipping/` entero de MiCorreo/Zipnova que Hazing no porta). `customer/` y `reviews/` todavía no existen — se agregan cuando haga falta esa funcionalidad (Fase 6/7).
+- `src/app/api/*` — Route Handlers exclusivamente para webhooks (`/api/webhooks/mercadopago`), el cron (`/api/cron`), callbacks de auth, sitemap/robots.
+- `src/lib/*` — Dominios: `orders/`, `payments/`, `cart/`, `catalog/`, `admin/`, `coupons/`, `email/`, `supabase/`, `prisma.ts`. `shipping/quote.ts` es el único archivo de `shipping/` — cotiza por `ShippingZone`, sin adapter de courier (delta vs. glamify, que tiene un módulo `shipping/` entero de MiCorreo/Zipnova que Hazing no porta). `customer/` y `reviews/` todavía no existen — se agregan cuando haga falta esa funcionalidad (Fase 6/7).
 - **Guards y Auth:** Staff vía Supabase Auth → tabla `User` (`role = 'owner' | 'admin'`), `requireAdmin()` en layouts y Server Actions. Clientas vía Supabase Auth (email) → `Customer`. Compras de invitadas guardan contacto/dirección en `Order`.
 
 ## Invariantes de dominio
@@ -61,7 +60,7 @@ Patrón: **Next.js App Router + servicios desacoplados en `src/lib/*`**. La lóg
 
 ## Catálogo — talle y color (ver ADR 0001)
 
-`Product.sizeSystem` (`letters | numeric | one_size`) elegido por producto, no por categoría. `ProductVariant.size` + `ProductVariant.color`, validados en `src/lib/admin/products/validation.ts` contra `SIZE_SCALES` de `src/lib/catalog/sizes.ts`. Par `(size, color)` único por producto. Escalas nuevas = cambio de código, no de admin.
+`Product.sizeSystem` (`letters | numeric | one_size`) elegido por producto, no por categoría. `ProductVariant.size` + `ProductVariant.color`, validados en `src/lib/admin/products/validation.ts` contra `SIZE_SCALES` de `src/lib/catalog/sizes.ts` (ninguno de los dos existe todavía: `sizes.ts` entra en Fase 6, `validation.ts` en Fase 7). Par `(size, color)` único por producto. Escalas nuevas = cambio de código, no de admin.
 
 ## Vetos de producto (no reproponer)
 
@@ -69,7 +68,7 @@ Patrón: **Next.js App Router + servicios desacoplados en `src/lib/*`**. La lóg
 - Reembolsos automáticos por API: descartados — manual + registro admin.
 - Emojis como íconos: prohibidos (Lucide SVG).
 - Stock falso / urgencia falsa: prohibido.
-- Deploy en Vercel o fuera de Cloudflare Workers: descartado salvo ADR nuevo.
+- Deploy fuera de Vercel: descartado salvo ADR nuevo (Cloudflare Workers se abandonó en ADR 0005, igual que en glamify).
 - **API de envío (MiCorreo/PaqAr/Zipnova/Mercado Envíos) en v1: descartada.** Despacho 100% manual.
 - **Facturación automática en v1: descartada.**
 - Dark mode: a decidir como parte de la identidad de marca (no es invariante universal).
@@ -95,7 +94,7 @@ Assets pendientes de producción (fashion film, fotografía de campaña y de pro
 
 - **Admin:** `requireAdmin()` (`src/lib/admin/auth.ts`) chequea sesión Supabase Auth + rol `owner`/`admin` en tabla `User`.
 - **MP Webhook:** `src/lib/orders/webhook-service.ts` valida firma HMAC en `x-signature`, re-consulta a la API de MP, procesa idempotentemente por `mpPaymentId`. El Route Handler que lo expone se cablea en Fase 8.
-- **Secretos:** solo en Cloudflare Secrets (`wrangler secret put`) y `.env.local`. NUNCA en git ni en cliente.
+- **Secretos:** solo en las Environment Variables del proyecto de Vercel y en `.env.local`. NUNCA en git ni en cliente.
 - **Guard de mutación:** `scripts/prod-write-guard.ts` intercepta scripts locales para confirmar host de Supabase por terminal.
 
 ## Skill routing
@@ -121,7 +120,7 @@ Respuestas directas, sin intro ni conclusiones. Código y comandos exactos. Si h
 **SIEMPRE**
 
 - Correr `format:check`, `lint`, `typecheck`, `test` antes de decir "listo". Al declarar verde, citar el output real.
-- TypeScript strict sin excepciones. Server Actions para mutaciones UI; Route Handlers solo para webhooks MP, auth callbacks y sitemap/robots. Queries a DB solo desde Server Components o Server Actions vía `prisma` por-request.
+- TypeScript strict sin excepciones. Server Actions para mutaciones UI; Route Handlers solo para webhooks MP, el cron, auth callbacks y sitemap/robots. Queries a DB solo desde Server Components, Server Actions o esos Route Handlers, vía `prisma` de `src/lib/prisma.ts`.
 
 **PREGUNTAR ANTES**
 
@@ -133,7 +132,7 @@ Respuestas directas, sin intro ni conclusiones. Código y comandos exactos. Si h
 
 ## Git
 
-Cuenta de GitHub: **pendiente** — se completa cuando exista el repo de la dueña (ver `SETUP.md` §1). Hasta entonces, sin remote configurado.
+Cuenta de GitHub: **`Laza223`**, repo privado `hazing`, como glamify (ADR 0005). El remote todavía no está configurado: se agrega cuando Lazar cree el repo (ver `SETUP.md` §1).
 
 ## Compact Instructions
 

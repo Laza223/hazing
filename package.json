@@ -7,10 +7,6 @@
     "dev": "next dev",
     "build": "cross-env PRISMA_CLIENT_ENGINE_TYPE=wasm prisma generate && next build",
     "start": "next start",
-    "build:worker": "opennextjs-cloudflare build",
-    "dev:worker": "wrangler dev --port 8771",
-    "preview:worker": "pnpm build:worker && pnpm dev:worker",
-    "deploy": "pnpm build:worker && wrangler deploy",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -24,7 +20,6 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
-    "@opennextjs/cloudflare": "^1.19.11",
     "@prisma/adapter-pg": "^6.19.3",
     "@prisma/client": "^6.1.0",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -69,8 +64,7 @@
     "prisma": "^6.1.0",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.3",
-    "vitest": "^2.1.8",
-    "wrangler": "^4.98.0"
+    "vitest": "^2.1.8"
   },
   "packageManager": "pnpm@11.1.2"
 }
