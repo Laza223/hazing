@@ -130,6 +130,7 @@ export function Lookbook({ looks, className }: LookbookProps) {
   return (
     <section
       ref={sectionRef}
+      id="lookbook"
       className={cn("relative", className)}
       aria-label="Lookbook"
     >

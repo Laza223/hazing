@@ -13,23 +13,23 @@ interface FooterLink {
   href: string;
 }
 
-// Links placeholder — las páginas de tienda/ayuda todavía no existen (fuera
-// de alcance de esta tarea). Legal usa rutas reales de la spec funcional
-// (docs/spec/05-direccion-arte.md §4 beat 8), aunque las páginas tampoco
-// existan todavía.
+// Rutas reales (sub-fases 6.2/6.3/6.5). Lookbook ancla a la sección de la
+// home (`id="lookbook"` en src/components/home/lookbook.tsx).
 const SHOP_LINKS: FooterLink[] = [
-  { label: "Novedades", href: "#" },
-  { label: "Tienda", href: "#" },
-  { label: "Lookbook", href: "#" },
+  { label: "Novedades", href: "/tienda?orden=novedades" },
+  { label: "Tienda", href: "/tienda" },
+  { label: "Lookbook", href: "/#lookbook" },
 ];
 const HELP_LINKS: FooterLink[] = [
-  { label: "Envíos y cambios", href: "#" },
-  { label: "Guía de talles", href: "#" },
-  { label: "Contacto", href: "#" },
+  { label: "Envíos y cambios", href: "/envios-y-cambios" },
+  { label: "Guía de talles", href: "/guia-de-talles" },
+  { label: "Preguntas frecuentes", href: "/preguntas-frecuentes" },
+  { label: "Contacto", href: "/contacto" },
 ];
 const LEGAL_LINKS: FooterLink[] = [
   { label: "Botón de Arrepentimiento", href: "/arrepentimiento" },
   { label: "Privacidad", href: "/privacidad" },
+  { label: "Términos", href: "/terminos" },
 ];
 
 /**

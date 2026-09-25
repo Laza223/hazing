@@ -150,3 +150,48 @@ export function abandonedCartEmail(d: AbandonedCartEmailData): EmailContent {
   const text = `${hi}te quedó algo en el carrito:\n\n${d.items.map((it) => `- ${itemLabel(it)} × ${it.qty}: ${formatARS(it.lineTotal)}`).join("\n")}\n\nVolvé a tu carrito: ${d.recoverUrl}`;
   return { subject, html, text };
 }
+
+export interface RetractionEmailData {
+  ticket: string;
+  contactName: string;
+  contactEmail: string;
+  contactPhone?: string | null;
+  orderNumber?: string | null;
+  reason?: string | null;
+}
+
+/** Alerta a la dueña: nueva solicitud del Botón de Arrepentimiento (Res. 424/2020). */
+export function retractionAlertEmail(d: RetractionEmailData): EmailContent {
+  const subject = `Solicitud de arrepentimiento ${d.ticket}`;
+  const row = (k: string, v?: string | null) =>
+    v ? `<tr><td><strong>${k}</strong></td><td>${escapeHtml(v)}</td></tr>` : "";
+  const html = `<div style="font-family:Georgia,serif;color:${INK}">
+    <h1 style="font-weight:400">Solicitud de arrepentimiento ${d.ticket}</h1>
+    <p>Una clienta ejerció el derecho de arrepentimiento (art. 34 Ley 24.240). Contactala para coordinar la devolución y el reintegro.</p>
+    <table style="width:100%;border-collapse:collapse">
+      ${row("Nombre", d.contactName)}${row("Email", d.contactEmail)}${row("Teléfono", d.contactPhone)}${row("Pedido", d.orderNumber)}${row("Motivo", d.reason)}
+    </table>
+  </div>`;
+  const text = `Solicitud de arrepentimiento ${d.ticket}\nNombre: ${d.contactName}\nEmail: ${d.contactEmail}\nTeléfono: ${d.contactPhone ?? "-"}\nPedido: ${d.orderNumber ?? "-"}\nMotivo: ${d.reason ?? "-"}`;
+  return { subject, html, text };
+}
+
+export interface RetractionReceiptData {
+  ticket: string;
+  date: string;
+  contactName: string;
+}
+
+/** Constancia al consumidor: comprobante del ejercicio del derecho de arrepentimiento. */
+export function retractionReceiptEmail(d: RetractionReceiptData): EmailContent {
+  const name = escapeHtml(d.contactName);
+  const subject = `Constancia de arrepentimiento ${d.ticket} — Hazing`;
+  const html = `<div style="font-family:Georgia,serif;color:${INK}">
+    <h1 style="font-weight:400">Recibimos tu solicitud</h1>
+    <p>Hola ${name}, registramos tu solicitud de arrepentimiento.</p>
+    <p>Constancia: <strong>${escapeHtml(d.ticket)}</strong><br/>Fecha: ${escapeHtml(d.date)}</p>
+    <p>Te vamos a contactar para coordinar la devolución del producto y el reintegro del importe. Guardá este correo como comprobante.</p>
+  </div>`;
+  const text = `Recibimos tu solicitud de arrepentimiento.\nConstancia: ${d.ticket}\nFecha: ${d.date}\nTe contactaremos para coordinar la devolución y el reintegro. Guardá este correo como comprobante.`;
+  return { subject, html, text };
+}
