@@ -20,33 +20,49 @@ import { getEffectivePrice, isOnSale, toNumber } from "@/lib/catalog/pricing";
  * 6 y 7.
  *
  * NEW IN (beat 4) pasa a leer `getNewestProducts()` en la sub-fase 6.2 (ver
- * docs/spec/06-storefront.md §3.9). El resto de las secciones (hero,
- * momento 3D, lookbook, editorial) sigue con el mock mínimo: no hay ni un
- * solo asset A2/A2b/A3/A4 de producción todavía (§12, "no hay producción de
- * campaña"), así que cada una renderiza sus slots reales — es el estado
- * correcto hasta que existan esos assets, no un bug de esta página.
+ * docs/spec/06-storefront.md §3.9). Hero (A2b), imagen clave, lookbook y
+ * editorial (A3) usan la primera tanda de campaña en
+ * `public/images/campaign/` (2026-09-28). Los tiles de producto del
+ * editorial siguen con el mock hasta que exista el catálogo real.
  */
-const FEATURED_KEY_IMAGE_SRC: string | undefined = undefined;
+const CAMPAIGN = "/images/campaign";
+
+const HERO_IMAGE_SRC = `${CAMPAIGN}/hero-desktop.avif`;
+const HERO_IMAGE_SRC_MOBILE = `${CAMPAIGN}/hero-mobile.avif`;
+const FEATURED_KEY_IMAGE_SRC = `${CAMPAIGN}/key.webp`;
+const FEATURED_KEY_IMAGE_ALT = "Top strapless negro y minifalda gris texturada";
 
 /** Cantidad de tiles de NEW IN — igual al mock que reemplaza (ver new-in.tsx). */
 const NEW_IN_COUNT = 4;
 
-const LOOKBOOK_LOOKS: LookbookLook[] = Array.from(
-  { length: 8 },
-  (_, i): LookbookLook => ({
-    id: `lookbook-${i + 1}`,
-    number: String(i + 1).padStart(2, "0"),
-    name: `Look de ejemplo ${i + 1}`,
-    imageSrc: null,
-    imageAlt: `Look de ejemplo ${i + 1}`,
-  }),
+const LOOKBOOK_NAMES = [
+  "Conjunto texturado chocolate",
+  "Minifalda de cuero",
+  "Cárdigan bordó con puntilla",
+  "Musculosa animal print con encaje",
+  "Top halter ciruela",
+  "Body strapless rojo",
+  "Top con volados y minifalda azul",
+] as const;
+
+const LOOKBOOK_LOOKS: LookbookLook[] = LOOKBOOK_NAMES.map(
+  (name, i): LookbookLook => {
+    const number = String(i + 1).padStart(2, "0");
+    return {
+      id: `lookbook-${number}`,
+      number,
+      name,
+      imageSrc: `${CAMPAIGN}/look-${number}.webp`,
+      imageAlt: name,
+    };
+  },
 );
 
 const EDITORIAL_LOOKS: EditorialLook[] = [
   {
     id: "editorial-1",
-    imageSrc: null,
-    imageAlt: "Editorial de campaña, look 1",
+    imageSrc: `${CAMPAIGN}/editorial-01.webp`,
+    imageAlt: "Top halter blanco con argolla dorada",
     lookHref: "/tienda?look=1",
     tiles: [
       {
@@ -69,8 +85,8 @@ const EDITORIAL_LOOKS: EditorialLook[] = [
   },
   {
     id: "editorial-2",
-    imageSrc: null,
-    imageAlt: "Editorial de campaña, look 2",
+    imageSrc: `${CAMPAIGN}/editorial-02.webp`,
+    imageAlt: "Top animal print de tul y minifalda negra",
     lookHref: "/tienda?look=2",
     tiles: [
       {
@@ -120,7 +136,12 @@ export default async function HomePage() {
     // Ver `flightEnabled` en home-sequence-context.tsx.
     <HomeSequenceProvider hasHeroKeyFrame>
       {/* Beat 2 */}
-      <Hero keyImageSrc={FEATURED_KEY_IMAGE_SRC} />
+      <Hero
+        imageSrc={HERO_IMAGE_SRC}
+        imageSrcMobile={HERO_IMAGE_SRC_MOBILE}
+        keyImageSrc={FEATURED_KEY_IMAGE_SRC}
+        keyImageAlt={FEATURED_KEY_IMAGE_ALT}
+      />
       {/* Beat 3 */}
       <HeroToCommerce />
       {/* Beat 4 */}

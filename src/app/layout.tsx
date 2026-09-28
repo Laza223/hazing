@@ -20,9 +20,18 @@ const archivo = Archivo({
   display: "swap",
 });
 
+const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+
 export const metadata: Metadata = {
+  metadataBase: appUrl ? new URL(appUrl) : undefined,
   title: "Hazing",
   description: "Hazing — ropa femenina, Argentina.",
+  openGraph: {
+    siteName: "Hazing",
+    locale: "es_AR",
+    type: "website",
+    images: [{ url: "/images/campaign/og.jpg", width: 1200, height: 630 }],
+  },
 };
 
 export default function RootLayout({
