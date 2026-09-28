@@ -36,6 +36,12 @@
         "3000"
       ],
       "port": 3000
+    },
+    {
+      "name": "hazing-dev-supabase",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["exec", "next", "dev", "--port", "3002"],
+      "port": 3002
     }
   ]
 }

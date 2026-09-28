@@ -298,7 +298,9 @@ model CartItem {
   qty               Int
   unitPriceSnapshot Decimal        @db.Decimal(12, 2)
 
-  @@index([cartId])
+  // Una línea por variante: dos "agregar" simultáneos no duplican la línea (docs/spec/06-storefront.md §6).
+  // También sirve de índice para buscar por cartId (prefijo).
+  @@unique([cartId, variantId])
 }
 
 model Order {

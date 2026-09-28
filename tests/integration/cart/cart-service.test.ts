@@ -7,6 +7,7 @@ const { cartItem, productVariant } = vi.hoisted(() => ({
   cartItem: {
     findFirst: vi.fn(),
     create: vi.fn(),
+    upsert: vi.fn(),
     update: vi.fn(),
     updateMany: vi.fn(),
     delete: vi.fn(),
@@ -89,7 +90,7 @@ describe("addItem / updateItem — una línea nunca supera el stock de su varian
     await expect(
       addItem({ cartId: "cart-a", variantId: "v1", qty: 1 }),
     ).rejects.toThrow(/sin stock/i);
-    expect(cartItem.create).not.toHaveBeenCalled();
+    expect(cartItem.upsert).not.toHaveBeenCalled();
   });
 
   it("addItem clampea a stock cuando existente + pedida lo supera, y avisa (sin tirar error)", async () => {
@@ -102,10 +103,12 @@ describe("addItem / updateItem — una línea nunca supera el stock de su varian
     });
     cartItem.findFirst.mockResolvedValue({ id: "item-1", qty: 3 });
     const result = await addItem({ cartId: "cart-a", variantId: "v1", qty: 4 });
-    expect(cartItem.update).toHaveBeenCalledWith({
-      where: { id: "item-1" },
-      data: { qty: 5 },
-    });
+    expect(cartItem.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { cartId_variantId: { cartId: "cart-a", variantId: "v1" } },
+        update: { qty: 5 },
+      }),
+    );
     expect(result.notice).toMatch(/solo quedan 5/i);
   });
 
@@ -119,8 +122,10 @@ describe("addItem / updateItem — una línea nunca supera el stock de su varian
     });
     cartItem.findFirst.mockResolvedValue(null);
     const result = await addItem({ cartId: "cart-a", variantId: "v1", qty: 2 });
-    expect(cartItem.create).toHaveBeenCalledWith({
-      data: {
+    expect(cartItem.upsert).toHaveBeenCalledWith({
+      where: { cartId_variantId: { cartId: "cart-a", variantId: "v1" } },
+      update: { qty: 2 },
+      create: {
         cartId: "cart-a",
         variantId: "v1",
         qty: 2,

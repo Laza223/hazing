@@ -90,20 +90,20 @@ export async function addItem(
   const finalQty = Math.min(desired, variant.stock);
   const notice = finalQty < desired ? `Solo quedan ${finalQty}.` : undefined;
 
-  if (existing)
-    await prisma.cartItem.update({
-      where: { id: existing.id },
-      data: { qty: finalQty },
-    });
-  else
-    await prisma.cartItem.create({
-      data: {
-        cartId: input.cartId,
-        variantId: input.variantId,
-        qty: finalQty,
-        unitPriceSnapshot: unit,
-      },
-    });
+  // upsert sobre @@unique([cartId, variantId]): si otro request creó la línea entre el
+  // findFirst y acá, se actualiza en vez de duplicarla.
+  await prisma.cartItem.upsert({
+    where: {
+      cartId_variantId: { cartId: input.cartId, variantId: input.variantId },
+    },
+    update: { qty: finalQty },
+    create: {
+      cartId: input.cartId,
+      variantId: input.variantId,
+      qty: finalQty,
+      unitPriceSnapshot: unit,
+    },
+  });
   return notice ? { notice } : {};
 }
 
