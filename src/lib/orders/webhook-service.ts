@@ -370,6 +370,10 @@ export async function processWebhook(
           html: owner.html,
           text: owner.text,
         });
+      } else {
+        console.error(
+          `[webhook] RESEND_OWNER_EMAIL no configurada: la dueña no recibió el aviso del pedido ${order.orderNumber}`,
+        );
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);

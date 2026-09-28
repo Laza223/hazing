@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { getCartView } from "@/lib/cart/cart-view";
 import { getEffectivePrice } from "@/lib/catalog/pricing";
@@ -9,13 +10,15 @@ import { CartSummary } from "@/components/cart/cart-summary";
 import { CouponForm } from "@/components/cart/coupon-form";
 import { FreeShippingLine } from "@/components/cart/free-shipping-line";
 import { EmptyCart } from "@/components/cart/empty-cart";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Tu carrito" };
 
 /**
  * CarritoPage — página completa del carrito (docs/spec/06-storefront.md
  * §3.6, handoff §8.7: mobile-first, el drawer no reemplaza la página).
- * "Finalizar compra" NO se muestra hasta la Fase 8 (checkout + MercadoPago).
+ * "Finalizar compra" lleva a `/checkout` (Fase 8).
  */
 export default async function CarritoPage() {
   const { cart, subtotal, count, threshold, coupon } = await getCartView();
@@ -65,10 +68,9 @@ export default async function CarritoPage() {
           <FreeShippingLine subtotal={subtotal} threshold={threshold} />
           <CouponForm applied={coupon?.code ?? null} />
           <CartSummary subtotal={subtotal} discount={discount} total={total} />
-          {/*
-            "Finalizar compra" llega en la Fase 8 (checkout + MercadoPago) —
-            no se muestra hasta entonces (docs/spec/06-storefront.md §3.6).
-          */}
+          <Link href="/checkout" className={cn(buttonVariants(), "w-full")}>
+            Finalizar compra
+          </Link>
         </aside>
       </div>
     </div>

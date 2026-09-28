@@ -50,10 +50,12 @@ export async function createPreference(
     payer: { email: input.payerEmail },
     external_reference: input.orderId,
     notification_url: input.notificationUrl,
+    // `pedido` = Order.id (UUID, no adivinable) — el orderNumber es secuencial
+    // (HZG-000123) y permite enumerar pedidos ajenos en /checkout/gracias.
     back_urls: {
-      success: `${input.appUrl}/checkout/gracias`,
-      failure: `${input.appUrl}/checkout/gracias`,
-      pending: `${input.appUrl}/checkout/gracias`,
+      success: `${input.appUrl}/checkout/gracias?pedido=${input.orderId}`,
+      failure: `${input.appUrl}/checkout/gracias?pedido=${input.orderId}`,
+      pending: `${input.appUrl}/checkout/gracias?pedido=${input.orderId}`,
     },
     auto_return: "approved",
     payment_methods: {

@@ -30,6 +30,12 @@ export async function sendEmail(
     "Hazing <onboarding@resend.dev>";
 
   if (!apiKey) {
+    // En producción esto significa que la clienta NO recibe el mail: que se vea
+    // como error en los logs de Vercel, no como un info de desarrollo.
+    if (process.env.VERCEL_ENV === "production")
+      console.error(
+        `RESEND_API_KEY no configurada: no se envió "${input.subject}"`,
+      );
     console.info(
       `[dev email] → ${input.to} | ${input.subject}\n${input.text ?? input.html}`,
     );

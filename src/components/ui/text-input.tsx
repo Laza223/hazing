@@ -2,12 +2,17 @@
 
 import * as React from "react";
 import * as LabelPrimitive from "@radix-ui/react-label";
+import { AlertCircle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
 export interface TextInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
   id: string;
+  /** Mensaje de error (a11y: WCAG 2.4.7 / entrega-feature §2 revisión adversarial
+   *  Fase 8) — forma + texto, nunca color. Setealo y el input queda
+   *  `aria-invalid` con `aria-describedby` apuntando al mensaje. */
+  error?: string;
 }
 
 /**
@@ -17,7 +22,11 @@ export interface TextInputProps extends React.InputHTMLAttributes<HTMLInputEleme
  * `ring`/`shadow-*`.
  */
 const TextInput = React.forwardRef<HTMLInputElement, TextInputProps>(
-  ({ className, label, id, ...props }, ref) => {
+  (
+    { className, label, id, error, "aria-describedby": describedBy, ...props },
+    ref,
+  ) => {
+    const errorId = `${id}-error`;
     return (
       <div className="flex flex-col gap-1">
         <LabelPrimitive.Root
@@ -29,12 +38,24 @@ const TextInput = React.forwardRef<HTMLInputElement, TextInputProps>(
         <input
           ref={ref}
           id={id}
+          aria-invalid={error ? "true" : undefined}
+          aria-describedby={
+            error
+              ? [errorId, describedBy].filter(Boolean).join(" ")
+              : describedBy
+          }
           className={cn(
             "h-12 rounded-control border border-line bg-paper px-3 text-base text-ink outline-none transition-colors duration-ui ease-ui placeholder:text-ink-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
             className,
           )}
           {...props}
         />
+        {error && (
+          <p id={errorId} className="flex items-center gap-1 text-xs text-ink">
+            <AlertCircle className="size-3.5 shrink-0" aria-hidden />
+            {error}
+          </p>
+        )}
       </div>
     );
   },

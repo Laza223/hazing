@@ -89,6 +89,10 @@ export async function createRetractionRequest(
     } catch (err) {
       console.error("retraction owner email failed", err);
     }
+  } else {
+    console.error(
+      `RESEND_OWNER_EMAIL no configurada: la dueña no recibió el aviso de ${ticket}`,
+    );
   }
 
   return { ok: true, ticket, date };

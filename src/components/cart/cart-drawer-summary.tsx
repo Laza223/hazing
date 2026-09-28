@@ -10,8 +10,8 @@ import { cn } from "@/lib/utils";
 
 /**
  * CartDrawerSummary — contenido del `CartDrawer` (docs/spec/06-storefront.md
- * §3.6): "resumen mínimo" — línea(s), subtotal y "Ver carrito". Sin cupón ni
- * "Finalizar compra": eso vive en `/carrito` y en Fase 8.
+ * §3.6): "resumen mínimo" — línea(s), subtotal, "Ver carrito" y "Finalizar
+ * compra" (Fase 8). Sin cupón: eso vive en `/carrito`.
  */
 export async function CartDrawerSummary() {
   const { cart, subtotal } = await getCartView();
@@ -59,7 +59,13 @@ export async function CartDrawerSummary() {
           <span className="text-ink-2">Subtotal</span>
           <span className="tabular-nums text-ink">{formatPrice(subtotal)}</span>
         </div>
-        <Link href="/carrito" className={cn(buttonVariants(), "w-full")}>
+        <Link href="/checkout" className={cn(buttonVariants(), "w-full")}>
+          Finalizar compra
+        </Link>
+        <Link
+          href="/carrito"
+          className={cn(buttonVariants({ variant: "outline" }), "w-full")}
+        >
           Ver carrito
         </Link>
       </div>
