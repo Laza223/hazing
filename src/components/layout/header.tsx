@@ -84,13 +84,23 @@ export function Header() {
           <Wordmark className="h-6 w-auto text-current" />
         </Link>
 
-        <Link
-          id="header-cart-link"
-          href="/carrito"
-          className="tracking-caps-sm inline-flex min-h-11 items-center text-xs font-medium uppercase outline-none transition-colors duration-ui ease-ui focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
-        >
-          Carrito ({cartCount})
-        </Link>
+        <div className="flex items-center gap-5">
+          {/* Solo desde md: a 375px choca con el wordmark centrado. En mobile
+              "Cuenta" vive en el menú fullscreen. */}
+          <Link
+            href="/cuenta"
+            className="tracking-caps-sm hidden min-h-11 items-center text-xs font-medium uppercase outline-none transition-colors duration-ui ease-ui focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current md:inline-flex"
+          >
+            Cuenta
+          </Link>
+          <Link
+            id="header-cart-link"
+            href="/carrito"
+            className="tracking-caps-sm inline-flex min-h-11 items-center text-xs font-medium uppercase outline-none transition-colors duration-ui ease-ui focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
+          >
+            Carrito ({cartCount})
+          </Link>
+        </div>
       </header>
 
       <FullscreenMenu open={menuOpen} onOpenChange={setMenuOpen} />

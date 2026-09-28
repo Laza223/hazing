@@ -9,6 +9,13 @@ import { ProductGallery } from "@/components/pdp/product-gallery";
 import { AddToCart, type PdpVariant } from "@/components/pdp/add-to-cart";
 import { PdpAccordions } from "@/components/pdp/pdp-accordions";
 import { CatalogBreadcrumbs } from "@/components/catalog/catalog-breadcrumbs";
+import { WishlistHeart } from "@/components/catalog/wishlist-heart";
+import { ReviewCard } from "@/components/catalog/review-card";
+import { RatingStars } from "@/components/ui/rating-stars";
+import { getCustomer } from "@/lib/customer/auth";
+import { isWishlisted } from "@/app/(storefront)/cuenta/favoritos/actions";
+import { getApprovedReviews } from "@/lib/reviews/queries";
+import { ReviewForm } from "./review-form";
 
 /** Base pública de la app para URLs absolutas de metadata/JSON-LD. Mismo
  *  fallback que usa el resto del proyecto para dev/preview sin la env seteada. */
@@ -103,6 +110,11 @@ export default async function ProductoPage({
 
   const inStock = product.variants.some((v) => v.stock > 0);
   const productUrl = absoluteUrl(`/producto/${slug}`);
+  const [customer, wishlisted, reviewsSummary] = await Promise.all([
+    getCustomer(),
+    isWishlisted(product.id),
+    getApprovedReviews(product.id),
+  ]);
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -136,9 +148,23 @@ export default async function ProductoPage({
 
         <div className="md:sticky md:top-24 md:col-span-5 md:self-start">
           <CatalogBreadcrumbs items={crumbs} />
-          <h1 className="mt-2 font-display text-2xl text-ink">
-            {product.name}
-          </h1>
+          <div className="mt-2 flex items-start justify-between gap-4">
+            <h1 className="font-display text-2xl text-ink">{product.name}</h1>
+            <WishlistHeart
+              productId={product.id}
+              productSlug={slug}
+              initial={wishlisted}
+            />
+          </div>
+          {reviewsSummary.count > 0 && (
+            <div className="mt-2 flex items-center gap-2">
+              <RatingStars value={reviewsSummary.average} size="sm" />
+              <span className="text-xs text-ink-3">
+                {reviewsSummary.count} reseña
+                {reviewsSummary.count > 1 ? "s" : ""}
+              </span>
+            </div>
+          )}
 
           <div className="mt-6">
             <AddToCart
@@ -151,6 +177,24 @@ export default async function ProductoPage({
 
           <div className="mt-8">
             <PdpAccordions />
+          </div>
+
+          <div className="mt-8 space-y-4">
+            <h2 className="tracking-caps-sm text-xs uppercase text-ink-3">
+              Reseñas
+            </h2>
+            {reviewsSummary.reviews.length > 0 && (
+              <div className="space-y-3">
+                {reviewsSummary.reviews.map((review) => (
+                  <ReviewCard key={review.id} review={review} />
+                ))}
+              </div>
+            )}
+            <ReviewForm
+              productId={product.id}
+              slug={slug}
+              isLoggedIn={Boolean(customer)}
+            />
           </div>
         </div>
       </div>
