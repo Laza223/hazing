@@ -21,7 +21,9 @@ export default function TerminosPage() {
       <h2>1. Identificación del proveedor</h2>
       <ul>
         <li>Titular: {businessInfo.legalName}</li>
-        <li>CUIT/CUIL: {businessInfo.taxId}</li>
+        <li>
+          {businessInfo.taxIdLabel}: {businessInfo.taxId}
+        </li>
         <li>Domicilio: {businessInfo.address}</li>
         <li>Contacto: {businessInfo.email}</li>
       </ul>

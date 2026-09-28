@@ -2,13 +2,16 @@ import { describe, it, expect } from "vitest";
 import { findIncompletePlaceholders } from "@/lib/legal/launch-readiness";
 
 describe("findIncompletePlaceholders (Hazing)", () => {
-  it("documenta los datos legales que todavía le faltan a la dueña", () => {
-    // Este test no es un pass/fail de calidad: documenta el estado real de
-    // docs/spec/06-storefront.md §7 (identidad legal pendiente). Si un día
-    // deja de fallar acá y hay que agregar un dato nuevo, actualizar esta
-    // lista junto con business-info.ts.
-    expect(findIncompletePlaceholders().sort()).toEqual(
-      ["legalName", "taxId", "email"].sort(),
-    );
+  it("no quedan datos legales sin completar (se publican en /terminos y /privacidad)", () => {
+    expect(findIncompletePlaceholders()).toEqual([]);
+  });
+
+  it("detecta un placeholder si vuelve a aparecer", () => {
+    expect(
+      findIncompletePlaceholders({
+        email: "[COMPLETAR: email]",
+        legalName: "Ana",
+      }),
+    ).toEqual(["email"]);
   });
 });

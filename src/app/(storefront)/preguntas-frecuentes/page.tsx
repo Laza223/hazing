@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { EXCHANGE_POLICY } from "@/lib/content/copy";
 
 export const metadata: Metadata = {
   title: "Preguntas frecuentes",
@@ -34,13 +35,13 @@ const faqs: Array<{ q: string; a: ReactNode }> = [
     a: "Pagás de forma segura con Mercado Pago: tarjetas de crédito/débito y dinero en cuenta. No guardamos los datos de tu tarjeta.",
   },
   {
-    // [BORRADOR] La política de cambios (talle/color) la define la dueña
-    // (docs/spec/06-storefront.md §7): hasta entonces no se promete canje.
     q: "¿Puedo cambiar una prenda por otro talle o color?",
     a: (
       <>
-        Escribinos por <Link href="/contacto">contacto</Link> y te contamos cómo
-        seguir.
+        Sí, dentro de los {EXCHANGE_POLICY.exchangeDays} días corridos desde que
+        la recibís, sin uso, sin lavar y con su etiqueta. Las prendas blancas no
+        tienen cambio, salvo falla. Todas las condiciones, en{" "}
+        <Link href="/envios-y-cambios">Envíos y cambios</Link>.
       </>
     ),
   },

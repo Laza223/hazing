@@ -28,8 +28,7 @@ export const CONTACT_WHATSAPP_DISPLAY = "+54 9 2323 52-9931";
 export const CONTACT_WHATSAPP_URL = "https://wa.me/5492323529931";
 
 /**
- * [BORRADOR — pendiente de definición de la dueña: política de cambios
- * (docs/spec/01-negocio.md, decisión pendiente #8) y tabla de medidas real]
+ * [BORRADOR — pendiente de la dueña: tabla de medidas real]
  * Acordeón "Guía de talles" de la PDP (docs/spec/05-direccion-arte.md §7).
  * Texto genérico y neutral: no inventa una tabla de medidas ni compromisos
  * de calce que la dueña todavía no definió.
@@ -38,12 +37,35 @@ export const SIZE_GUIDE_COPY =
   "Cada prenda muestra el sistema de talles con el que está confeccionada (letras, numérico o talle único). Si tenés dudas sobre cuál te queda mejor, escribinos antes de comprar y te ayudamos a elegir.";
 
 /**
- * [BORRADOR — pendiente de definición de la dueña: política de cambios,
- * docs/spec/01-negocio.md decisión pendiente #8]
- * Acordeón "Envíos y cambios" de la PDP (docs/spec/05-direccion-arte.md §7).
+ * Acordeón "Envíos y cambios" de la PDP (docs/spec/05-direccion-arte.md §7):
+ * resumen de EXCHANGE_POLICY. Si cambia la política, cambian los dos.
  */
 export const SHIPPING_AND_RETURNS_COPY =
-  "Hacemos envíos a todo el país desde Luján. El costo y el plazo se calculan según tu código postal antes de confirmar la compra. Para cambios o devoluciones, escribinos y te contamos cómo seguir.";
+  "Hacemos envíos a todo el país desde Luján: el costo y el plazo se calculan con tu código postal antes de confirmar la compra. Tenés 30 días desde que recibís tu pedido para cambiar talle o color, con la prenda sin uso, sin lavar y con su etiqueta. Las prendas blancas no tienen cambio, salvo falla.";
+
+/**
+ * Política de cambios de la dueña (decisión pendiente #8, resuelta el
+ * 2026-09-28): prenda en las condiciones en que se entregó, con etiqueta; la
+ * ropa blanca no tiene cambio. Redacción y detalles agregados en la sesión
+ * principal — [A CONFIRMAR CON LA DUEÑA]: plazo de 30 días, envío del cambio a
+ * cargo de la clienta, crédito si no hay stock.
+ *
+ * Límites legales que NO se pueden recortar con esta política: la garantía por
+ * falla (Ley 24.240 art. 11, 6 meses en cosas nuevas) cubre también la ropa
+ * blanca, y el derecho de arrepentimiento (art. 34) aplica a toda prenda.
+ */
+export const EXCHANGE_POLICY = {
+  exchangeDays: 30,
+  conditions: [
+    "Tenés 30 días corridos desde que recibís tu pedido para pedir un cambio de talle o color.",
+    "La prenda tiene que estar sin uso, sin lavar, sin perfume ni marcas, y con la etiqueta original colocada: en las mismas condiciones en que la recibiste.",
+    "Las prendas blancas no tienen cambio.",
+    "El cambio está sujeto a stock. Si no tenemos el talle o color que buscás, podés elegir otra prenda (abonando o recibiendo la diferencia) o te damos un crédito por lo que pagaste para usar en otra compra.",
+    "El envío del cambio, de ida y de vuelta, corre por tu cuenta.",
+  ],
+  defects:
+    "Si una prenda llegó con una falla de fabricación, la cambiamos siempre, también si es blanca, y el envío corre por nuestra cuenta. Avisanos apenas la veas, con una foto de la falla y tu número de pedido.",
+} as const;
 
 /** Momento inmersivo "La etiqueta" (docs/spec/05-direccion-arte.md §6). */
 export const SIGNATURE_MOMENT_LABEL = "01 — La marca";
