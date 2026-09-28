@@ -1,0 +1,32 @@
+import { PageHeader } from "@/components/admin/page-header";
+import { SettingsForm } from "./settings-form";
+import { prisma } from "@/lib/prisma";
+
+export const dynamic = "force-dynamic";
+
+export default async function AdminAjustesPage() {
+  const setting = await prisma.setting.findUnique({ where: { id: "default" } });
+
+  const initialSettings = {
+    storeName: setting?.storeName ?? "Hazing",
+    freeShippingThreshold:
+      setting?.freeShippingThreshold != null
+        ? Number(setting.freeShippingThreshold)
+        : null,
+    originPostalCode: setting?.originPostalCode ?? "6700",
+    whatsappNumber: setting?.whatsappNumber ?? null,
+    instagramUrl: setting?.instagramUrl ?? null,
+    tiktokUrl: setting?.tiktokUrl ?? null,
+  };
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Ajustes de la tienda"
+        subtitle="Configurá los datos generales de la tienda, el umbral de envío gratis y los canales de atención."
+      />
+
+      <SettingsForm initialSettings={initialSettings} />
+    </div>
+  );
+}

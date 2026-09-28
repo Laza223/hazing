@@ -38,11 +38,17 @@ export function buildCategoryTree(categories: FlatCategory[]): CategoryNode[] {
       children: [],
     });
   }
+  // Una hija activa cuyo padre está inactivo o no existe NO se promueve a raíz: se omite
+  // (docs/spec/07-admin.md §3.8). Antes, al filtrar inactivas ANTES de armar el Map, el
+  // padre desaparecía de `byId` y la hija huérfana caía a `roots.push` por el `else`.
   const roots: CategoryNode[] = [];
   for (const node of byId.values()) {
-    const parent = node.parentId ? byId.get(node.parentId) : undefined;
+    if (node.parentId === null) {
+      roots.push(node);
+      continue;
+    }
+    const parent = byId.get(node.parentId);
     if (parent) parent.children.push(node);
-    else roots.push(node);
   }
   const sortRec = (nodes: CategoryNode[]) => {
     nodes.sort(

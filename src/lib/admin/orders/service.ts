@@ -1,0 +1,136 @@
+import { prisma, type PrismaTransactionClient } from "@/lib/prisma";
+import { canTransition } from "@/lib/orders/state-machine";
+import { computeStockDecrements } from "@/lib/orders/stock";
+import type { CartLine } from "@/lib/cart/types";
+import type { OrderStatus } from "@prisma/client";
+
+/**
+ * Servicio de pedidos del admin — port de glamify-makeup sin la rama de
+ * combos (Hazing no tiene `Combo`, ver docs/spec/07-admin.md §2).
+ * Cancelar o reembolsar un pedido pagado repone el stock de las variantes
+ * en la misma transacción que el cambio de estado (invariante de dominio,
+ * CLAUDE.md). El reembolso en sí es manual en Mercado Pago: acá solo se
+ * registra el estado `refunded` (sin reembolso por API, vetado).
+ */
+
+export const STATUS_LABELS: Record<OrderStatus, string> = {
+  pending_payment: "Pendiente de pago",
+  paid: "Pagado",
+  preparing: "Preparando",
+  shipped: "Enviado",
+  delivered: "Entregado",
+  cancelled: "Cancelado",
+  refunded: "Reembolsado",
+};
+
+/** Item mínimo del pedido para recomputar stock. */
+export interface AdminOrderItem {
+  id: string;
+  variantId: string | null;
+  qty: number;
+}
+
+/** Superficie mínima del pedido que el servicio necesita. */
+export interface AdminOrder {
+  id: string;
+  status: OrderStatus;
+  items: AdminOrderItem[];
+}
+
+/** Superficie mínima de DB (para inyectar fakes en tests). */
+export interface OrdersDb {
+  order: {
+    findUnique: (args: {
+      where: { id: string };
+      include?: unknown;
+    }) => Promise<AdminOrder | null>;
+  };
+  $transaction: <T>(
+    fn: (tx: PrismaTransactionClient) => Promise<T>,
+  ) => Promise<T>;
+}
+
+/** El pedido cambió entre la lectura (fuera de la tx) y la escritura — otra pestaña/persona
+ *  ganó la carrera. Nunca reponer stock sobre una precondición que ya no vale. */
+export class OrderStatusRaceError extends Error {
+  constructor() {
+    super("El pedido cambió mientras lo editabas. Recargá la página.");
+    this.name = "OrderStatusRaceError";
+  }
+}
+
+export interface OrdersDeps {
+  db: OrdersDb;
+}
+
+export function defaultOrdersDeps(): OrdersDeps {
+  return { db: prisma as unknown as OrdersDb };
+}
+
+const orderInclude = { items: true } as const;
+
+function orderItemToLine(it: AdminOrderItem): CartLine {
+  return {
+    id: it.id,
+    kind: "variant",
+    refId: it.variantId ?? "",
+    unitPrice: 0,
+    qty: it.qty,
+  };
+}
+
+/** ¿El estado anterior ya había descontado stock? (se descuenta al confirmar pago). */
+function hadStockDeducted(status: OrderStatus): boolean {
+  return status === "paid" || status === "preparing";
+}
+
+/**
+ * Cambia el estado del pedido validando la transición (`state-machine.ts`).
+ * Si el destino es `cancelled` o `refunded` y el estado anterior ya había
+ * descontado stock, repone el stock de las variantes en la misma transacción.
+ */
+export async function changeOrderStatus(
+  orderId: string,
+  to: OrderStatus,
+  deps: OrdersDeps,
+): Promise<{ id: string }> {
+  const order = await deps.db.order.findUnique({
+    where: { id: orderId },
+    include: orderInclude,
+  });
+  if (!order) throw new Error("El pedido no existe.");
+  if (order.status === to) return { id: order.id };
+  if (!canTransition(order.status, to)) {
+    throw new Error(
+      `No se puede pasar de "${STATUS_LABELS[order.status]}" a "${STATUS_LABELS[to]}".`,
+    );
+  }
+
+  const shouldRestock =
+    (to === "cancelled" || to === "refunded") && hadStockDeducted(order.status);
+
+  await deps.db.$transaction(async (tx) => {
+    // Guarda atómica con precondición sobre el estado leído fuera de la tx (mismo patrón que
+    // `webhook-service.ts`): si otra edición ya movió el pedido mientras esta corría, count
+    // vuelve 0 y abortamos SIN reponer stock, en vez de pisar ciegamente y reponer dos veces.
+    const res = await tx.order.updateMany({
+      where: { id: order.id, status: order.status },
+      data: { status: to },
+    });
+    if (res.count !== 1) throw new OrderStatusRaceError();
+    if (shouldRestock) {
+      const decrements = computeStockDecrements(
+        order.items.map(orderItemToLine),
+      );
+      for (const [variantId, qty] of decrements) {
+        if (variantId && qty > 0) {
+          await tx.productVariant.update({
+            where: { id: variantId },
+            data: { stock: { increment: qty } },
+          });
+        }
+      }
+    }
+  });
+  return { id: order.id };
+}

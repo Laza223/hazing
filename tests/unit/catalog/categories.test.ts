@@ -49,6 +49,34 @@ describe("buildCategoryTree", () => {
       "oversize",
     ]); // order 0 antes que 1
   });
+
+  it("una hija activa con padre inactivo o inexistente NO se promueve a raíz: se omite (docs/spec/07-admin.md §3.8)", () => {
+    const flatOrphans = [
+      ...flat,
+      {
+        id: "huerfana-inactivo",
+        slug: "huerfana-inactivo",
+        name: "Huérfana de padre inactivo",
+        parentId: "oculta", // "oculta" tiene active: false
+        order: 0,
+      },
+      {
+        id: "huerfana-inexistente",
+        slug: "huerfana-inexistente",
+        name: "Huérfana de padre inexistente",
+        parentId: "no-existe",
+        order: 0,
+      },
+    ];
+    const tree = buildCategoryTree(flatOrphans);
+    const allSlugs = tree.flatMap((c) => [
+      c.slug,
+      ...c.children.map((k) => k.slug),
+    ]);
+    expect(allSlugs).not.toContain("huerfana-inactivo");
+    expect(allSlugs).not.toContain("huerfana-inexistente");
+    expect(tree.map((c) => c.slug)).toEqual(["remeras", "vestidos"]);
+  });
 });
 
 describe("filterVisibleInNav", () => {
