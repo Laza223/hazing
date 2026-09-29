@@ -9,10 +9,10 @@ Ya hecho antes de esta fase: dominio `hazing.store` y deploy automático por la 
 | Ítem | Estado |
 |---|---|
 | `robots.txt` y `sitemap.xml` | ✅ commit `7b8b29b` (excluye admin, cuenta, checkout, carrito, api, auth, ingresar) |
-| Gate de producción (job `deploy` vs Deployment Checks) | Aprobado (ADR 0006, 2026-09-29): Deployment Checks con `quality`, sin job `deploy`. Falta el toggle en Vercel (§2) |
+| Gate de producción (job `deploy` vs Deployment Checks) | Aprobado (ADR 0006, 2026-09-29): Deployment Checks con `quality`, sin job `deploy`. Check `quality` cargado en Vercel el 2026-09-29; falta probarlo con el primer push |
 | `RESEND_OWNER_EMAIL` | Si falta, el aviso a la dueña ahora deja `console.error` en los logs (antes se omitía en silencio). La variable la carga Lazar |
 | Rate limit en acciones públicas (arrepentimiento, reseñas, login) | Aprobado (tabla `RateLimit` en Postgres, §3); migración `20260929150847_rate_limit` aplicada en Supabase con RLS; ✅ implementado (2026-09-29): login, registro, recuperar contraseña, login admin, reseñas, arrepentimiento, checkout y cupón; ver §3 |
-| Supabase Auth: Site URL y Redirect URLs a hazing.store | Lo carga Lazar (valores en §2) |
+| Supabase Auth: Site URL, Redirect URLs y templates de Confirm signup / Reset password | ✅ cargado y verificado tras recargar (2026-09-29); "Confirm email" ON. Siguen en inglés los textos de los templates y falta el SMTP de Resend (Lazar) |
 | PostHog | **Diferido** (2026-09-29): no hace falta para vender; los puntos `begin_checkout`/`purchase` quedan marcados en el código. Se decide con tráfico real (ver la pregunta de cookies y consentimiento, Ley 25.326) |
 | E2E + axe + Lighthouse sobre el build de producción | E2E + axe: 60/60 + 2 salteados (2026-09-28). Lighthouse: pendiente |
 | Zonas de envío | Provisorio (2026-09-29): un solo precio para todo el país en Ajustes; **hay que cargarlo antes de vender** (hoy 0 filas en `ShippingZone` en producción). El diseño final es la sesión de envíos: ver [09-envios.md](09-envios.md) |

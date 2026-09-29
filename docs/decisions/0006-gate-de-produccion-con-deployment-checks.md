@@ -1,6 +1,6 @@
 # ADR 0006 — Gate de producción con Deployment Checks de Vercel, sin job `deploy`
 
-**Estado:** aceptado por Lazar (2026-09-29); falta que active el toggle en el dashboard de Vercel · **Reemplaza:** el job `deploy` "calcado de glamify" que planeaban el handoff §6 (Fase 10) y el ADR 0005.
+**Estado:** aceptado por Lazar (2026-09-29); check `quality` (origen GitHub, solo Production) agregado en Vercel el 2026-09-29 y verificado tras recargar. Todavía no se probó con un push real: si el primer deploy queda sin promover, revisar la nota de abajo · **Reemplaza:** el job `deploy` "calcado de glamify" que planeaban el handoff §6 (Fase 10) y el ADR 0005.
 
 ## Problema
 
@@ -28,4 +28,6 @@ Barata: es un toggle en Settings → Build and Deployment → Deployment Checks.
 
 - La producción tarda lo que tarde el CI (hoy ~3–4 min) en recibir un deploy ya construido.
 - El nombre del job (`quality`) pasa a ser contrato: si se renombra en `ci.yml`, hay que actualizar el check requerido en Vercel.
-- Lo configura Lazar en el dashboard (requisito: "automatic aliasing" de producción activado, que es el default).
+- Se configura en el dashboard (requisito: "automatic aliasing" de producción activado, que es el default). Alta hecha en Add Checks → GitHub → "Select checks to add" con el SHA de un commit que ya corrió el CI y "Show All Checks" activado (`quality` solo aparece así).
+- Vercel advierte que, para checks disparados por `repository_dispatch`, el workflow debe avisar con `vercel/repository-dispatch/actions/status@v1`. `ci.yml` corre por `push`, así que en principio no hace falta; si el primer push a `main` deja el deployment sin promover, agregar ese paso al final del job `quality` o quitar el check (el deployment se libera con Force Promote).
+- El proyecto ya tenía dos checks nativos de Vercel (`Lint`, `TypeCheck`) en Preview y Production; no se tocaron.
