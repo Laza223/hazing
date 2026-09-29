@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { cn } from "@/lib/utils";
 import { PriceLine } from "@/components/catalog/price-line";
+import { ImagePlaceholder } from "@/components/catalog/image-placeholder";
 
 export interface ProductTileProps {
   href: string;
@@ -35,9 +36,7 @@ const DEFAULT_SIZES = "(min-width: 1280px) 25vw, (min-width: 768px) 33vw, 50vw";
  * ProductTile — grilla de catálogo, ratio `4/5`, radio 0
  * (docs/spec/05-direccion-arte.md §3.1). `next/image` con los dominios
  * remotos de Supabase Storage ya configurados (`next.config.mjs`, Fase 6).
- * Si falta `imageSrc`, no se inventa un sustituto (regla del brief, §12): se
- * muestra el slot A4 con la especificación del asset pendiente (mismo patrón
- * que `AssetSlot` en src/components/home/hero.tsx).
+ * Si falta `imageSrc`, va `ImagePlaceholder` (wordmark sobre `paper-2`).
  */
 export function ProductTile({
   href,
@@ -81,12 +80,7 @@ export function ProductTile({
             )}
           </>
         ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-1 p-4 text-center">
-            <span className="tracking-caps-sm text-[12px] font-medium uppercase text-ink-2">
-              A4 · Foto de producto pendiente
-            </span>
-            <span className="text-[12px] text-ink-4">4:5 — 2000×2500</span>
-          </div>
+          <ImagePlaceholder />
         )}
       </div>
       <p className="mt-3 text-[13px] text-ink">{name}</p>

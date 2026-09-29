@@ -13,6 +13,31 @@ export const BRAND_STATEMENT = "Prendas que no necesitan ruido.";
 
 /**
  * [BORRADOR — pendiente de aprobación de la dueña]
+ * Textos de las secciones de la home (src/app/(storefront)/page.tsx).
+ */
+export const HERO_EYEBROW = "Nueva temporada";
+
+export const HOME_STORY = {
+  eyebrow: "La marca",
+  title: "Diseñada en Luján. Pensada para repetirse.",
+  linkLabel: "Conocé la tienda",
+} as const;
+
+export const HOME_EDITORIAL = {
+  eyebrow: "Editorial",
+  title: "Lo justo, bien hecho.",
+  body: "Básicos con carácter y prendas que se combinan entre sí: menos piezas, más looks.",
+  linkLabel: "Ver la colección",
+} as const;
+
+export const HOME_CAMPAIGN_BAND = {
+  eyebrow: "Envíos a todo el país",
+  title: "Todo el lookbook, en la tienda.",
+  linkLabel: "Comprar ahora",
+} as const;
+
+/**
+ * [BORRADOR — pendiente de aprobación de la dueña]
  * Texto del ítem "04 HAZING" del menú fullscreen (docs/spec/05-direccion-arte.md §5).
  */
 export const MENU_BRAND_BLURB =
