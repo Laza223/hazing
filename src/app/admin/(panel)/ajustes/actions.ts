@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 
 import { requireAdmin } from "@/lib/admin/auth";
 import { prisma } from "@/lib/prisma";
+import {
+  setNationwideShippingPrice,
+  type NationwideZoneDb,
+} from "@/lib/admin/shipping-zone";
 import type { ActionResult } from "@/lib/forms/action-result";
 
 export async function updateSettingsAction(
@@ -41,6 +45,20 @@ export async function updateSettingsAction(
     freeShippingThreshold = n;
   }
 
+  // Vacío = sin costo de envío cargado: el checkout no cotiza ni deja pagar.
+  const shippingPriceRaw = String(formData.get("shippingPrice") ?? "").trim();
+  let shippingPrice: number | null = null;
+  if (shippingPriceRaw !== "") {
+    const n = Number(shippingPriceRaw);
+    if (!Number.isFinite(n) || n < 0) {
+      return {
+        ok: false,
+        error: "El costo de envío debe ser un número positivo.",
+      };
+    }
+    shippingPrice = n;
+  }
+
   if (!originPostalCode || originPostalCode.length < 4) {
     return {
       ok: false,
@@ -70,6 +88,11 @@ export async function updateSettingsAction(
         tiktokUrl,
       },
     });
+
+    await setNationwideShippingPrice(
+      shippingPrice,
+      prisma as unknown as NationwideZoneDb,
+    );
 
     revalidatePath("/", "layout");
     revalidatePath("/admin/ajustes");

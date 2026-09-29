@@ -11,6 +11,7 @@ interface SettingsFormProps {
   initialSettings: {
     storeName: string;
     freeShippingThreshold: number | null;
+    shippingPrice: number | null;
     originPostalCode: string;
     whatsappNumber: string | null;
     instagramUrl: string | null;
@@ -91,6 +92,22 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
             />
             <p className="text-[11px] text-ink-4">
               Dejalo vacío si por ahora no vas a ofrecer envío gratis.
+            </p>
+          </div>
+          <div className="flex flex-col gap-1">
+            <TextInput
+              id="shippingPrice"
+              name="shippingPrice"
+              label="Costo de envío a todo el país (ARS)"
+              type="number"
+              min="0"
+              step="100"
+              defaultValue={initialSettings.shippingPrice ?? ""}
+              placeholder="Ej. 6500"
+            />
+            <p className="text-[11px] text-ink-4">
+              Un solo precio para cualquier código postal. Si lo dejás vacío, la
+              tienda no puede cobrar envíos y las clientas no pueden pagar.
             </p>
           </div>
           <TextInput

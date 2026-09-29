@@ -1,6 +1,6 @@
 # ADR 0006 — Gate de producción con Deployment Checks de Vercel, sin job `deploy`
 
-**Estado:** propuesto (2026-09-28), pendiente del OK de Lazar · **Reemplaza:** el job `deploy` "calcado de glamify" que planeaban el handoff §6 (Fase 10) y el ADR 0005.
+**Estado:** aceptado por Lazar (2026-09-29); falta que active el toggle en el dashboard de Vercel · **Reemplaza:** el job `deploy` "calcado de glamify" que planeaban el handoff §6 (Fase 10) y el ADR 0005.
 
 ## Problema
 
@@ -16,7 +16,7 @@ El job `deploy` de glamify (`.github/workflows/ci.yml` de glamify) tiene un paso
 2. **Dejarlo como está:** un `main` rojo llega a producción. Con checkout y plata real, no alcanza.
 3. **Branch protection con PR obligatorio:** frena el merge a `main` hasta que `quality` pase, pero cambia el flujo de trabajo (commits directos a `main` autorizados por Lazar) y no cubre un push forzado por el dueño. Complementaria, no sustituta.
 
-## Decisión (propuesta)
+## Decisión
 
 No agregar el job `deploy`. Mantener la integración Git de Vercel y activar **Deployment Checks** en el proyecto con el check de GitHub **`quality`** como requerido: Vercel sigue construyendo cada push, pero **no asigna hazing.store** a ese deployment hasta que `quality` pase. En caso de emergencia se puede usar "Force Promote" desde el dashboard. Documentación: https://vercel.com/docs/deployment-checks (verificada el 2026-09-28).
 
