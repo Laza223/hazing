@@ -23,6 +23,7 @@ import { toNumber } from "@/lib/catalog/pricing";
 import { prisma } from "@/lib/prisma";
 import { getCustomer } from "@/lib/customer/auth";
 import { quoteShipping } from "@/lib/shipping/quote";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import {
   getShippingZonesForQuote,
   getFreeShippingThreshold,
@@ -161,6 +162,8 @@ export async function setVariantQtyAction(input: {
 }
 
 export async function applyCouponAction(code: string): Promise<ActionResult> {
+  const limited = await enforceRateLimit("coupon");
+  if (limited) return limited;
   const normalized = code.trim().toUpperCase();
   if (!normalized) return { ok: false, error: "Ingresá un código." };
   const coupon = await prisma.coupon.findUnique({
@@ -275,6 +278,8 @@ export async function createCheckoutAction(input: {
   };
   acceptedTerms: boolean;
 }): Promise<CheckoutResult> {
+  const limited = await enforceRateLimit("checkout");
+  if (limited) return limited;
   const formInput: CheckoutFormInput = {
     contactName: input.contactName,
     contactEmail: input.contactEmail,

@@ -6,6 +6,18 @@ import { runOrderExpiryJob } from "@/lib/orders/expiry-job";
 
 export const maxDuration = 60;
 
+const RATE_LIMIT_RETENTION_MS = 24 * 60 * 60 * 1000;
+
+/** Borra contadores de rate limit con la ventana vencida hace más de 24 h. */
+async function purgeRateLimits(now: Date): Promise<{ deleted: number }> {
+  const { count } = await prisma.rateLimit.deleteMany({
+    where: {
+      windowStart: { lt: new Date(now.getTime() - RATE_LIMIT_RETENTION_MS) },
+    },
+  });
+  return { deleted: count };
+}
+
 /**
  * Cron horario (carrito abandonado + autocancelación de pedidos vencidos).
  * Reemplaza el `scheduled()` del Worker de Cloudflare (ADR 0005). Lo dispara
@@ -33,12 +45,13 @@ export async function GET(request: Request): Promise<NextResponse> {
   const results = await Promise.allSettled([
     runAbandonedCartJob({ db: prisma as never, sendEmail, now, appUrl }),
     runOrderExpiryJob({ db: prisma as never, now }),
+    purgeRateLimits(now),
   ]);
 
   for (const r of results)
     if (r.status === "rejected") console.error("[cron]", r.reason);
 
-  const [abandoned, expiry] = results;
+  const [abandoned, expiry, rateLimits] = results;
   return NextResponse.json({
     ok: results.every((r) => r.status === "fulfilled"),
     abandoned:
@@ -49,5 +62,9 @@ export async function GET(request: Request): Promise<NextResponse> {
       expiry.status === "fulfilled"
         ? expiry.value
         : { error: String(expiry.reason) },
+    rateLimits:
+      rateLimits.status === "fulfilled"
+        ? rateLimits.value
+        : { error: String(rateLimits.reason) },
   });
 }

@@ -5,6 +5,7 @@ import { getCustomer } from "@/lib/customer/auth";
 import { createReview } from "@/lib/reviews/service";
 import { prisma } from "@/lib/prisma";
 import type { ActionResult } from "@/lib/forms/action-result";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 export interface ReviewActionResult extends ActionResult {
   status?: string;
@@ -16,6 +17,9 @@ export async function createReviewAction(
   const website = String(formData.get("website") ?? "");
   // Bot: campo trampa completado → fingimos éxito sin crear nada.
   if (website.trim() !== "") return { ok: true, status: "pending" };
+
+  const limited = await enforceRateLimit("review");
+  if (limited) return limited;
 
   const productId = String(formData.get("productId") ?? "");
   const slug = String(formData.get("slug") ?? "");

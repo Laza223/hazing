@@ -5,12 +5,15 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 // Estos casos cubren que sin secreto configurado, o con uno distinto, la ruta
 // no corre los jobs (que mandan emails y cancelan pedidos).
 
-const { runAbandonedCartJob, runOrderExpiryJob } = vi.hoisted(() => ({
-  runAbandonedCartJob: vi.fn(),
-  runOrderExpiryJob: vi.fn(),
-}));
+const { runAbandonedCartJob, runOrderExpiryJob, deleteMany } = vi.hoisted(
+  () => ({
+    runAbandonedCartJob: vi.fn(),
+    runOrderExpiryJob: vi.fn(),
+    deleteMany: vi.fn(),
+  }),
+);
 
-vi.mock("@/lib/prisma", () => ({ prisma: {} }));
+vi.mock("@/lib/prisma", () => ({ prisma: { rateLimit: { deleteMany } } }));
 vi.mock("@/lib/email/resend", () => ({ sendEmail: vi.fn() }));
 vi.mock("@/lib/cart/abandoned-job", () => ({ runAbandonedCartJob }));
 vi.mock("@/lib/orders/expiry-job", () => ({ runOrderExpiryJob }));
@@ -51,17 +54,38 @@ describe("GET /api/cron", () => {
     process.env.CRON_SECRET = "correcto";
     runAbandonedCartJob.mockResolvedValue({ sent: 0 });
     runOrderExpiryJob.mockResolvedValue({ cancelled: 0 });
+    deleteMany.mockResolvedValue({ count: 3 });
     const res = await GET(request("Bearer correcto"));
     expect(res.status).toBe(200);
     expect(runAbandonedCartJob).toHaveBeenCalledOnce();
     expect(runOrderExpiryJob).toHaveBeenCalledOnce();
-    await expect(res.json()).resolves.toMatchObject({ ok: true });
+    await expect(res.json()).resolves.toMatchObject({
+      ok: true,
+      rateLimits: { deleted: 3 },
+    });
+  });
+
+  it("purga RateLimit con windowStart de hace mas de 24 h", async () => {
+    process.env.CRON_SECRET = "correcto";
+    runAbandonedCartJob.mockResolvedValue({ sent: 0 });
+    runOrderExpiryJob.mockResolvedValue({ cancelled: 0 });
+    deleteMany.mockResolvedValue({ count: 0 });
+    const before = Date.now();
+    await GET(request("Bearer correcto"));
+    const arg = deleteMany.mock.calls[0][0] as {
+      where: { windowStart: { lt: Date } };
+    };
+    const lt = arg.where.windowStart.lt.getTime();
+    const day = 24 * 60 * 60 * 1000;
+    expect(lt).toBeGreaterThanOrEqual(before - day);
+    expect(lt).toBeLessThanOrEqual(Date.now() - day);
   });
 
   it("si un job falla, el otro corre igual y ok queda en false", async () => {
     process.env.CRON_SECRET = "correcto";
     runAbandonedCartJob.mockRejectedValue(new Error("resend caído"));
     runOrderExpiryJob.mockResolvedValue({ cancelled: 2 });
+    deleteMany.mockResolvedValue({ count: 0 });
     vi.spyOn(console, "error").mockImplementation(() => {});
     const res = await GET(request("Bearer correcto"));
     expect(runOrderExpiryJob).toHaveBeenCalledOnce();

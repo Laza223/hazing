@@ -4,12 +4,15 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminUser } from "@/lib/admin/auth";
 import type { AdminResult } from "@/lib/admin/result";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 /** Inicia sesión con email/password. Solo deja pasar a usuarios con fila User (owner/admin). */
 export async function signInAction(
   email: string,
   password: string,
 ): Promise<AdminResult> {
+  const limited = await enforceRateLimit("adminLogin");
+  if (limited) return limited;
   const cleanEmail = email.trim().toLowerCase();
   if (!cleanEmail || !password)
     return { ok: false, error: "Completá email y contraseña." };

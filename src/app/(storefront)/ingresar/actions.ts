@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthBaseUrl } from "@/lib/http/base-url";
 import { isUniqueConstraintError } from "@/lib/prisma-errors";
 import type { ActionResult } from "@/lib/forms/action-result";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 /** Tras autenticar, asocia el carrito de la cookie a la clienta. */
 export async function mergeCartForCurrentCustomer(): Promise<void> {
@@ -35,6 +36,8 @@ export async function signInAction(input: {
   email: string;
   password: string;
 }): Promise<ActionResult> {
+  const limited = await enforceRateLimit("login");
+  if (limited) return limited;
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({
     email: input.email.trim().toLowerCase(),
@@ -51,6 +54,8 @@ export async function signUpAction(input: {
   name: string;
   marketingConsent: boolean;
 }): Promise<ActionResult & { needsConfirmation?: boolean }> {
+  const limited = await enforceRateLimit("signup");
+  if (limited) return limited;
   const supabase = await createClient();
   const email = input.email.trim().toLowerCase();
 
@@ -120,6 +125,8 @@ export async function signUpAction(input: {
 export async function requestPasswordResetAction(
   email: string,
 ): Promise<ActionResult> {
+  const limited = await enforceRateLimit("recover");
+  if (limited) return limited;
   const supabase = await createClient();
   const baseUrl = await getAuthBaseUrl();
   await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {

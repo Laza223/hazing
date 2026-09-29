@@ -447,6 +447,14 @@ model Setting {
   updatedAt             DateTime @updatedAt
 }
 
+/// Contador de intentos por clave `acción:IP` en una ventana fija (rate limit de las
+/// acciones públicas: login, registro, reseñas, arrepentimiento). Ver src/lib/rate-limit.
+model RateLimit {
+  key         String   @id
+  count       Int
+  windowStart DateTime
+}
+
 // Solicitudes del Botón de Arrepentimiento (Res. 424/2020, art. 34 Ley 24.240).
 model RetractionRequest {
   id           String           @id @default(uuid()) @db.Uuid
