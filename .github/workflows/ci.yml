@@ -40,6 +40,12 @@ jobs:
 
       - name: Build
         run: pnpm build
+        env:
+          # Build no requiere DB real (igual que glamify); placeholders para que
+          # next build no falle al importar módulos que leen el entorno.
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+          DATABASE_URL: postgresql://placeholder
 
       - name: Gate â€” three.js y lenis fuera del servidor
         # Ver docs/decisions/0003-motion-y-3d.md y 0005-deploy-en-vercel.md:
