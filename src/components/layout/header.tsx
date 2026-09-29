@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import type { CategoryNode } from "@/lib/catalog/categories";
 import { FullscreenMenu } from "@/components/layout/fullscreen-menu";
 import { Wordmark } from "@/components/brand/wordmark";
 import { useCartUI } from "@/components/cart/cart-provider";
@@ -23,7 +24,7 @@ import { useCartUI } from "@/components/cart/cart-provider";
  * ruta y se monta en rutas que no tienen hero, donde este efecto no
  * encuentra nada y el header queda sólido, que es lo correcto.
  */
-export function Header() {
+export function Header({ categories }: { categories: CategoryNode[] }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [overHero, setOverHero] = useState(false);
   const { cartCount } = useCartUI();
@@ -106,7 +107,11 @@ export function Header() {
         </div>
       </header>
 
-      <FullscreenMenu open={menuOpen} onOpenChange={setMenuOpen} />
+      <FullscreenMenu
+        open={menuOpen}
+        onOpenChange={setMenuOpen}
+        categories={categories}
+      />
     </>
   );
 }

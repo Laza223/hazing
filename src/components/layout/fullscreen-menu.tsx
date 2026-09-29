@@ -5,10 +5,12 @@ import Image from "next/image";
 import Link from "next/link";
 import * as Dialog from "@radix-ui/react-dialog";
 import gsap from "gsap";
+import { ArrowLeft } from "lucide-react";
 
 import { useReducedMotion } from "@/lib/motion/use-reduced-motion";
 import { DURATION, EASE } from "@/lib/motion/tokens";
 import { lineDraw } from "@/lib/motion/primitives";
+import type { CategoryNode } from "@/lib/catalog/categories";
 import {
   MENU_BRAND_BLURB,
   SOCIAL_INSTAGRAM_HANDLE,
@@ -16,7 +18,8 @@ import {
 } from "@/lib/content/copy";
 
 // `preview`: foto de campaña que se ve a la derecha al pasar por el ítem
-// (desktop). "Hazing" muestra el texto de marca en su lugar.
+// (desktop). "Productos" no es un link: abre el listado de categorías, que
+// sale de la base (lo que Dana carga en el admin), no de una lista fija.
 const NAV_ITEMS = [
   {
     number: "01",
@@ -26,29 +29,39 @@ const NAV_ITEMS = [
   },
   {
     number: "02",
-    label: "Tienda",
-    href: "/tienda",
+    label: "Productos",
+    href: null,
     preview: "/images/campaign/look-03.webp",
   },
   {
     number: "03",
-    label: "Lookbook",
-    href: "/#lookbook",
-    preview: "/images/campaign/look-01.webp",
-  },
-  { number: "04", label: "Hazing", href: "/#marca", preview: null },
-  {
-    number: "05",
     label: "Contacto",
     href: "/contacto",
     preview: "/images/campaign/look-06.webp",
   },
 ] as const;
 
+const PRODUCTS_PREVIEW = "/images/campaign/look-03.webp";
+
+// `min-h-14` (56px): el §9 lo pide explícito para los ítems del menú en
+// mobile, donde la caja del texto sola no llega al target táctil.
+const ITEM_CLASS =
+  "flex min-h-14 w-full items-baseline gap-4 py-1 text-left text-ink outline-none transition-colors duration-ui ease-ui focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink group-hover/nav:text-ink-3 group-hover/nav:hover:text-ink group-hover/nav:focus-visible:text-ink";
+const ITEM_LABEL_CLASS =
+  "tracking-caps-lg font-display uppercase leading-none transition-transform duration-ui ease-ui group-hover/nav:hover:translate-x-2 group-hover/nav:focus-visible:translate-x-2";
+const PRODUCT_LABEL_STYLE = {
+  fontSize: "clamp(1.75rem, min(5vw, 8svh), 5rem)",
+  fontVariationSettings: '"wdth" 110',
+} as const;
+
 export interface FullscreenMenuProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Categorías visibles en el menú (raíces con sus subcategorías). */
+  categories: CategoryNode[];
 }
+
+type MenuView = "main" | "products";
 
 /**
  * FullscreenMenu — overlay fullscreen con Radix Dialog (foco atrapado, Esc,
@@ -62,12 +75,17 @@ export interface FullscreenMenuProps {
  * la intención del padre; `mounted` es si el nodo sigue en el DOM (incluye
  * la salida en curso).
  */
-export function FullscreenMenu({ open, onOpenChange }: FullscreenMenuProps) {
+export function FullscreenMenu({
+  open,
+  onOpenChange,
+  categories,
+}: FullscreenMenuProps) {
+  const [view, setView] = useState<MenuView>("main");
   const [mounted, setMounted] = useState(open);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const hovered =
     NAV_ITEMS.find((item) => item.label === hoveredItem) ?? NAV_ITEMS[0];
-  const previewSrc = hovered.preview;
+  const previewSrc = view === "products" ? PRODUCTS_PREVIEW : hovered.preview;
   const contentRef = useRef<HTMLDivElement>(null);
   const ruleRef = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
@@ -85,6 +103,11 @@ export function FullscreenMenu({ open, onOpenChange }: FullscreenMenuProps) {
       gsap.set(rule, { clearProps: "all" });
     };
   }, [open, mounted, reducedMotion]);
+
+  // Al cerrar el menú vuelve a la vista principal.
+  useEffect(() => {
+    if (!mounted) setView("main");
+  }, [mounted]);
 
   // Entrada: corre cuando el nodo recién se monta (open pasó a true).
   useEffect(() => {
@@ -166,44 +189,121 @@ export function FullscreenMenu({ open, onOpenChange }: FullscreenMenuProps) {
             Cerrar
           </Dialog.Close>
 
-          <div className="grid flex-1 grid-cols-1 items-center gap-8 lg:grid-cols-2">
-            <nav aria-label="Navegación principal" className="group/nav">
-              <ul className="flex flex-col gap-2">
-                {NAV_ITEMS.map((item) => (
-                  <li key={item.href}>
+          <div className="grid flex-1 grid-cols-1 items-center gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+            {view === "main" ? (
+              <nav aria-label="Navegación principal" className="group/nav">
+                <ul className="flex flex-col gap-2">
+                  {NAV_ITEMS.map((item) => {
+                    const content = (
+                      <>
+                        <span className="tracking-caps-sm text-xs text-ink-4">
+                          {item.number}
+                        </span>
+                        <span
+                          className={ITEM_LABEL_CLASS}
+                          style={{
+                            fontSize: "clamp(2.25rem, min(6.5vw, 13svh), 8rem)",
+                            fontVariationSettings: '"wdth" 110',
+                          }}
+                        >
+                          {item.label}
+                        </span>
+                      </>
+                    );
+                    const hoverProps = {
+                      onMouseEnter: () => setHoveredItem(item.label),
+                      onMouseLeave: () => setHoveredItem(null),
+                      onFocus: () => setHoveredItem(item.label),
+                      onBlur: () => setHoveredItem(null),
+                      className: ITEM_CLASS,
+                    };
+                    return (
+                      <li key={item.label}>
+                        {item.href ? (
+                          <Link
+                            href={item.href}
+                            onClick={() => onOpenChange(false)}
+                            {...hoverProps}
+                          >
+                            {content}
+                          </Link>
+                        ) : (
+                          <button
+                            type="button"
+                            aria-expanded={false}
+                            onClick={() => setView("products")}
+                            {...hoverProps}
+                          >
+                            {content}
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </nav>
+            ) : (
+              <nav aria-label="Productos" className="group/nav">
+                <button
+                  type="button"
+                  onClick={() => setView("main")}
+                  className="tracking-caps-sm mb-4 inline-flex min-h-11 items-center gap-2 text-xs uppercase text-ink-2 outline-none transition-colors duration-ui ease-ui hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                >
+                  <ArrowLeft aria-hidden="true" className="h-4 w-4" />
+                  Volver
+                </button>
+                <ul className="flex flex-col gap-1">
+                  <li>
                     <Link
-                      href={item.href}
+                      href="/tienda"
                       onClick={() => onOpenChange(false)}
-                      onMouseEnter={() => setHoveredItem(item.label)}
-                      onMouseLeave={() => setHoveredItem(null)}
-                      onFocus={() => setHoveredItem(item.label)}
-                      onBlur={() => setHoveredItem(null)}
-                      // `min-h-14` (56px): el §9 lo pide explícito para los
-                      // ítems del menú en mobile, donde el clamp de tamaño
-                      // cae a su mínimo (2.5rem = 40px) y la caja del texto
-                      // sola no llega al target táctil.
-                      className="flex min-h-14 items-baseline gap-4 py-1 text-ink outline-none transition-colors duration-ui ease-ui focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink group-hover/nav:text-ink-3 group-hover/nav:hover:text-ink group-hover/nav:focus-visible:text-ink"
+                      className={ITEM_CLASS}
                     >
-                      <span className="tracking-caps-sm text-xs text-ink-4">
-                        {item.number}
-                      </span>
                       <span
-                        className="tracking-caps-lg font-display uppercase leading-none transition-transform duration-ui ease-ui group-hover/nav:hover:translate-x-2 group-hover/nav:focus-visible:translate-x-2"
-                        style={{
-                          fontSize: "clamp(2.5rem, 9vw, 8rem)",
-                          fontVariationSettings: '"wdth" 110',
-                        }}
+                        className={ITEM_LABEL_CLASS}
+                        style={PRODUCT_LABEL_STYLE}
                       >
-                        {item.label}
+                        Ver todo
                       </span>
                     </Link>
                   </li>
-                ))}
-              </ul>
-            </nav>
+                  {categories.map((root) => (
+                    <li key={root.id}>
+                      <Link
+                        href={`/tienda/${root.slug}`}
+                        onClick={() => onOpenChange(false)}
+                        className={ITEM_CLASS}
+                      >
+                        <span
+                          className={ITEM_LABEL_CLASS}
+                          style={PRODUCT_LABEL_STYLE}
+                        >
+                          {root.name}
+                        </span>
+                      </Link>
+                      {root.children.length > 0 && (
+                        <ul className="tracking-caps-sm flex flex-wrap gap-x-5 pb-2 pl-1 text-xs uppercase">
+                          {root.children.map((child) => (
+                            <li key={child.id}>
+                              <Link
+                                href={`/tienda/${root.slug}/${child.slug}`}
+                                onClick={() => onOpenChange(false)}
+                                className="inline-flex min-h-11 items-center text-ink-2 outline-none transition-colors duration-ui ease-ui hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                              >
+                                {child.name}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            )}
 
             <div className="hidden lg:flex lg:items-center lg:justify-center">
-              <div className="relative aspect-[3/4] w-full max-w-md overflow-hidden bg-paper-2">
+              <div className="relative aspect-[3/4] h-[min(68svh,40rem)] max-w-full overflow-hidden bg-paper-2">
                 {previewSrc ? (
                   <Image
                     key={previewSrc}

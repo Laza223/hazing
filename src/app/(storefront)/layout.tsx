@@ -8,6 +8,8 @@ import { CartProvider } from "@/components/cart/cart-provider";
 import { CartDrawer } from "@/components/cart/cart-drawer";
 import { CartDrawerSummary } from "@/components/cart/cart-drawer-summary";
 import { getCartView } from "@/lib/cart/cart-view";
+import { getCategoryTree } from "@/lib/catalog/queries";
+import { filterVisibleInNav } from "@/lib/catalog/categories";
 
 /**
  * Layout del storefront (grupo de ruta) — chrome de Header/Footer/BrandEntrance
@@ -20,7 +22,11 @@ export default async function StorefrontLayout({
 }: {
   children: ReactNode;
 }) {
-  const { lines, count } = await getCartView();
+  const [{ lines, count }, tree] = await Promise.all([
+    getCartView(),
+    getCategoryTree(),
+  ]);
+  const menuCategories = filterVisibleInNav(tree);
   const initialLines = lines.map((l) => ({
     id: l.id,
     refId: l.refId,
@@ -32,7 +38,7 @@ export default async function StorefrontLayout({
     <MotionProvider>
       <CartProvider initialLines={initialLines} initialCount={count}>
         <BrandEntrance />
-        <Header />
+        <Header categories={menuCategories} />
         <main>{children}</main>
         <Footer />
         <CartDrawer>
