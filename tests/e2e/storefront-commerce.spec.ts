@@ -6,7 +6,7 @@ import AxeBuilder from "@axe-core/playwright";
 // que la base está sembrada (`pnpm db:seed`, o la base local de `prisma dev`
 // ya sembrada). CI no corre Playwright hoy (confirmado en
 // .github/workflows/ci.yml) y aunque lo hiciera, no tiene esa base: por eso
-// esto es una corrida manual, igual que tests/e2e/signature-moment.spec.ts.
+// esto es una corrida manual.
 //
 // Slugs/variantes usados (ver prisma/seed.ts para los datos exactos):
 // - demo-remera-basica-algodon: multi color (Negro/Blanco) × talle (S/M/L),
@@ -57,10 +57,6 @@ async function addVariantAndGoToCart(
 async function expectNoAxeViolations(page: Page): Promise<void> {
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa"])
-    // [data-mix-blend-difference]: mismo falso positivo de contraste de
-    // axe-core con `mix-blend-mode` documentado en
-    // tests/e2e/storefront-shell.spec.ts y src/components/layout/header.tsx.
-    .exclude("[data-mix-blend-difference]")
     .analyze();
   expect(
     results.violations,

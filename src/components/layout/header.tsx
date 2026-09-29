@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -12,9 +13,9 @@ import { useCartUI } from "@/components/cart/cart-provider";
 /**
  * Header — sticky (docs/spec/05-direccion-arte.md §3.2, §5).
  *
- * Sobre el hero (§4 beat 2) va con `mix-blend-mode: difference` y sin fondo:
- * así se lee sobre cualquier foto sin necesidad de una banda blanca encima
- * de la imagen. Cuando el hero deja de estar debajo del header, vuelve al
+ * En la home, con la página arriba de todo, va transparente sobre el hero con
+ * el texto en `ink` (la foto de campaña es clara; el `mix-blend-mode` que se
+ * usaba antes daba un gris lavado ilegible). Apenas se scrollea vuelve al
  * fondo `paper` sólido con su borde.
  *
  * El acoplamiento con la home es por atributo (`[data-hero-section]`, ver
@@ -26,35 +27,38 @@ export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [overHero, setOverHero] = useState(false);
   const { cartCount } = useCartUI();
+  // El header vive en el layout y no se remonta al navegar: se vuelve a
+  // buscar el hero en cada cambio de ruta.
+  const pathname = usePathname();
 
   useEffect(() => {
     const hero = document.querySelector("[data-hero-section]");
-    if (!hero) return;
+    if (!hero) {
+      setOverHero(false);
+      return;
+    }
 
-    // El header mide 64px (h-16): recortando ese alto del root, el hero deja
-    // de "intersecar" justo cuando termina de pasar por detrás del header.
-    const io = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (entry) setOverHero(entry.isIntersecting);
-      },
-      { rootMargin: "-64px 0px 0px 0px", threshold: 0 },
-    );
-    io.observe(hero);
-    return () => io.disconnect();
-  }, []);
+    // Transparente solo con la página arriba de todo: apenas se scrollea, el
+    // statement del hero pasa por debajo del header y se pisarían.
+    const update = () => setOverHero(window.scrollY < 8);
+    update();
+    // En una navegación cliente de vuelta a la home, Next puede resetear el
+    // scroll después de este efecto: se vuelve a medir en el frame siguiente.
+    const frame = requestAnimationFrame(update);
+    window.addEventListener("scroll", update, { passive: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", update);
+    };
+  }, [pathname]);
 
   return (
     <>
       <header
-        // data-mix-blend-difference: axe-core no evalúa `mix-blend-mode` y
-        // reporta un falso positivo de contraste (dequelabs/axe-core#1029).
-        // El E2E excluye SOLO los nodos con este atributo, no la regla.
-        data-mix-blend-difference={overHero ? "" : undefined}
         className={cn(
           "sticky top-0 z-40 flex h-16 items-center justify-between px-4 transition-colors duration-ui ease-ui md:px-10",
           overHero
-            ? "border-b border-transparent bg-transparent text-paper mix-blend-difference"
+            ? "border-b border-transparent bg-transparent text-ink"
             : "border-b border-line bg-paper text-ink",
         )}
       >
@@ -63,9 +67,8 @@ export function Header() {
           onClick={() => setMenuOpen(true)}
           aria-haspopup="dialog"
           aria-expanded={menuOpen}
-          // Sin color propio: hereda el del header (ink normal, paper sobre el
-          // hero). El outline de foco usa `outline-current` por lo mismo —
-          // con `outline-ink` fijo sería invisible en el modo invertido.
+          // Sin color propio: hereda el del header. El outline de foco usa
+          // `outline-current` por lo mismo.
           className="flex min-h-11 items-center gap-2 outline-none transition-colors duration-ui ease-ui focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
         >
           <Menu className="h-5 w-5" aria-hidden="true" />
@@ -80,7 +83,7 @@ export function Header() {
           className="absolute left-1/2 inline-flex min-h-11 -translate-x-1/2 items-center outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
         >
           {/* `text-current` pisa el `text-ink` por defecto del Wordmark para
-              que herede el color del header (invertido sobre el hero). */}
+              que herede el color del header. */}
           <Wordmark className="h-6 w-auto text-current" />
         </Link>
 

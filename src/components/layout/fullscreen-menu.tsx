@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import * as Dialog from "@radix-ui/react-dialog";
 import gsap from "gsap";
@@ -14,12 +15,34 @@ import {
   SOCIAL_INSTAGRAM_URL,
 } from "@/lib/content/copy";
 
+// `preview`: foto de campaña que se ve a la derecha al pasar por el ítem
+// (desktop). "Hazing" muestra el texto de marca en su lugar.
 const NAV_ITEMS = [
-  { number: "01", label: "Nuevo", href: "/" },
-  { number: "02", label: "Tienda", href: "/tienda" },
-  { number: "03", label: "Lookbook", href: "/lookbook" },
-  { number: "04", label: "Hazing", href: "/marca" },
-  { number: "05", label: "Contacto", href: "/contacto" },
+  {
+    number: "01",
+    label: "Nuevo",
+    href: "/tienda?orden=novedades",
+    preview: "/images/campaign/look-05.webp",
+  },
+  {
+    number: "02",
+    label: "Tienda",
+    href: "/tienda",
+    preview: "/images/campaign/look-03.webp",
+  },
+  {
+    number: "03",
+    label: "Lookbook",
+    href: "/#lookbook",
+    preview: "/images/campaign/look-01.webp",
+  },
+  { number: "04", label: "Hazing", href: "/#marca", preview: null },
+  {
+    number: "05",
+    label: "Contacto",
+    href: "/contacto",
+    preview: "/images/campaign/look-06.webp",
+  },
 ] as const;
 
 export interface FullscreenMenuProps {
@@ -42,6 +65,9 @@ export interface FullscreenMenuProps {
 export function FullscreenMenu({ open, onOpenChange }: FullscreenMenuProps) {
   const [mounted, setMounted] = useState(open);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const hovered =
+    NAV_ITEMS.find((item) => item.label === hoveredItem) ?? NAV_ITEMS[0];
+  const previewSrc = hovered.preview;
   const contentRef = useRef<HTMLDivElement>(null);
   const ruleRef = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
@@ -177,14 +203,20 @@ export function FullscreenMenu({ open, onOpenChange }: FullscreenMenuProps) {
             </nav>
 
             <div className="hidden lg:flex lg:items-center lg:justify-center">
-              <div className="relative aspect-[3/4] w-full max-w-md border border-line-2 p-6">
-                {hoveredItem === "Hazing" ? (
-                  <p className="flex h-full items-center text-sm leading-relaxed text-ink-2">
-                    {MENU_BRAND_BLURB}
-                  </p>
+              <div className="relative aspect-[3/4] w-full max-w-md overflow-hidden bg-paper-2">
+                {previewSrc ? (
+                  <Image
+                    key={previewSrc}
+                    src={previewSrc}
+                    alt=""
+                    aria-hidden="true"
+                    fill
+                    sizes="28rem"
+                    className="object-cover"
+                  />
                 ) : (
-                  <p className="flex h-full items-center justify-center text-center text-xs text-ink-4">
-                    A3 · preview de categoría pendiente
+                  <p className="flex h-full items-center p-8 text-sm leading-relaxed text-ink-2">
+                    {MENU_BRAND_BLURB}
                   </p>
                 )}
               </div>

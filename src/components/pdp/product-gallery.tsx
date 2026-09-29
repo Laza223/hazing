@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 
 import { cn } from "@/lib/utils";
+import { ImagePlaceholder } from "@/components/catalog/image-placeholder";
 
 export interface ProductGalleryProps {
-  /** URLs ya resueltas con `productImageUrl()`. Vacío = slot del asset A4. */
+  /** URLs ya resueltas con `productImageUrl()`. Vacío = `ImagePlaceholder`. */
   images: string[];
   name: string;
   className?: string;
@@ -65,9 +66,7 @@ export function ProductGallery({
                 className="object-cover"
               />
             ) : (
-              <div className="absolute inset-0 flex items-center justify-center p-4 text-center text-xs text-ink-4">
-                A4 · foto de producto pendiente
-              </div>
+              <ImagePlaceholder />
             )}
           </div>
         ))}

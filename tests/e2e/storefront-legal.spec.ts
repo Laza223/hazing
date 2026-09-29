@@ -31,13 +31,7 @@ test.describe("páginas legales e institucionales", () => {
         page.getByRole("heading", { level: 1, name: heading }),
       ).toBeVisible();
 
-      // [data-mix-blend-difference]: exclusión compartida con el resto de
-      // tests/e2e/*.spec.ts (ver storefront-shell.spec.ts) — no aplica en
-      // estas páginas de texto, se mantiene por consistencia si el shell
-      // (header/footer) lo introduce en el layout.
-      const results = await new AxeBuilder({ page })
-        .exclude("[data-mix-blend-difference]")
-        .analyze();
+      const results = await new AxeBuilder({ page }).analyze();
       expect(
         results.violations,
         JSON.stringify(results.violations, null, 2),
