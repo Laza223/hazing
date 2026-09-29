@@ -131,34 +131,37 @@ async function main(): Promise<void> {
     `borrar ${products.length} producto(s) demo-* y las categorías del seed que queden vacías`,
   );
 
-  const result = await prisma.$transaction(async (tx) => {
-    const delProducts = await tx.product.deleteMany({
-      where: { slug: { in: SEED_PRODUCT_SLUGS } },
-    });
-
-    let delCategories = 0;
-    for (const slug of SEED_CATEGORY_SLUGS) {
-      const category = await tx.category.findUnique({
-        where: { slug },
-        select: {
-          id: true,
-          _count: {
-            select: { products: true, children: true, productLinks: true },
-          },
-        },
+  const result = await prisma.$transaction(
+    async (tx) => {
+      const delProducts = await tx.product.deleteMany({
+        where: { slug: { in: SEED_PRODUCT_SLUGS } },
       });
-      if (!category) continue;
-      const hasProducts =
-        category._count.products > 0 || category._count.productLinks > 0;
-      const hasChildren = category._count.children > 0;
-      if (!hasProducts && !hasChildren) {
-        await tx.category.delete({ where: { id: category.id } });
-        delCategories++;
-      }
-    }
 
-    return { delProducts, delCategories };
-  });
+      let delCategories = 0;
+      for (const slug of SEED_CATEGORY_SLUGS) {
+        const category = await tx.category.findUnique({
+          where: { slug },
+          select: {
+            id: true,
+            _count: {
+              select: { products: true, children: true, productLinks: true },
+            },
+          },
+        });
+        if (!category) continue;
+        const hasProducts =
+          category._count.products > 0 || category._count.productLinks > 0;
+        const hasChildren = category._count.children > 0;
+        if (!hasProducts && !hasChildren) {
+          await tx.category.delete({ where: { id: category.id } });
+          delCategories++;
+        }
+      }
+
+      return { delProducts, delCategories };
+    },
+    { timeout: 60_000, maxWait: 15_000 },
+  );
 
   console.log("✅ Borrado completo:");
   console.log(
