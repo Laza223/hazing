@@ -99,17 +99,17 @@ Assets pendientes de producción (fashion film, fotografía de campaña y de pro
 
 ## Skill routing
 
-| Situación                              | Gana                               |
-| -------------------------------------- | ---------------------------------- |
-| Tarea no trivial — SIEMPRE primero     | `protocolo-orquestacion`           |
-| Feature nuevo                          | `entrega-feature`                  |
-| Bug / comportamiento raro              | `superpowers:systematic-debugging` |
-| Fixes de una lista de hallazgos        | `protocolo-fixes-general`          |
-| Decisión de arquitectura no obvia      | `decision-arquitectura`            |
-| Revisar PR / diff                      | `code-review` / `revision-pr`      |
-| Verificar implementación propia        | `verificacion-fresca`              |
-| Verificar flujo de UI corriendo la app | `verificacion-ux`                  |
-| Cierre de esfuerzo / release           | `cierre-release`                   |
+| Situación                              | Gana                                                  |
+| -------------------------------------- | ----------------------------------------------------- |
+| Tarea no trivial — SIEMPRE primero     | `protocolo-orquestacion`                              |
+| Feature nuevo                          | `entrega-feature`                                     |
+| Bug / comportamiento raro              | agente `sonnet-debugger`                              |
+| Fixes de una lista de hallazgos        | `protocolo-fixes-general`                             |
+| Decisión de arquitectura no obvia      | `decision-arquitectura`                               |
+| Revisar PR / diff                      | `/code-review` + agente `sonnet-adversarial-reviewer` |
+| Verificar implementación propia        | agente `sonnet-adversarial-reviewer`                  |
+| Verificar flujo de UI corriendo la app | `verificacion-ux`                                     |
+| Cierre de esfuerzo / release           | agente `sonnet-release-verifier`                      |
 
 ## Comunicación
 
