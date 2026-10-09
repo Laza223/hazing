@@ -47,3 +47,9 @@ export function startOfMonthART(now: Date): Date {
   const { year, month } = artParts(now);
   return artMidnightToUtc(year, month, 1);
 }
+
+/** Inicio del mes ART anterior al que contiene a `now`, como `Date` UTC. */
+export function startOfPrevMonthART(now: Date): Date {
+  const { year, month } = artParts(now);
+  return artMidnightToUtc(year, month - 1, 1);
+}

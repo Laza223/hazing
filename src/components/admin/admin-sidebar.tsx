@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
+  BarChart3,
   Package,
   FolderTree,
   Ticket,
@@ -26,6 +27,7 @@ interface AdminNavItem {
 
 const ITEMS: AdminNavItem[] = [
   { href: "/admin", label: "Inicio", icon: LayoutDashboard },
+  { href: "/admin/metricas", label: "Métricas", icon: BarChart3 },
   { href: "/admin/pedidos", label: "Pedidos", icon: ShoppingCart },
   { href: "/admin/productos", label: "Productos", icon: Package },
   { href: "/admin/categorias", label: "Categorías", icon: FolderTree },

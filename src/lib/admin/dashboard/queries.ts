@@ -1,56 +1,54 @@
+import type { OrderStatus } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/catalog/pricing";
-import { startOfMonthART } from "@/lib/admin/dashboard/dates";
+import {
+  startOfMonthART,
+  startOfPrevMonthART,
+} from "@/lib/admin/dashboard/dates";
 import {
   PAID_PLUS_STATUSES,
   computeSalesBuckets,
-  countPendingActions,
   averageTicket,
   topProducts,
-  criticalStock,
+  sumSalesBetween,
+  percentChange,
+  ordersByStatus,
+  countPaidOrders,
   type DashboardOrderRow,
   type DashboardOrderItemRow,
-  type DashboardVariantRow,
   type SalesBuckets,
-  type PendingActions,
   type TopProduct,
-  type CriticalStockEntry,
 } from "@/lib/admin/dashboard/stats";
 
 export interface DashboardData {
   sales: SalesBuckets;
-  pending: PendingActions;
   averageTicketMonth: number;
+  paidOrdersMonth: number;
+  /** Ventas del mes anterior hasta el mismo punto del mes (comparación justa). */
+  prevMonthSamePeriod: number;
+  /** Variación % del mes vs el mismo período del mes anterior; null sin base. */
+  monthChangePct: number | null;
+  statusFunnelMonth: Record<OrderStatus, number>;
   topProductsMonth: TopProduct[];
-  criticalStock: CriticalStockEntry[];
 }
 
 const TOP_PRODUCTS_LIMIT = 5;
-const CRITICAL_STOCK_LIMIT = 20;
 
-/** Reúne todos los datos del dashboard. `now` permite testear/forzar el instante de referencia. */
+/** Reúne los datos de la vista Métricas. `now` permite testear/forzar el instante de referencia. */
 export async function getDashboardData(
   now: Date = new Date(),
 ): Promise<DashboardData> {
   const monthStart = startOfMonthART(now);
+  const prevMonthStart = startOfPrevMonthART(now);
 
-  // Pedidos del mes en curso (cubre hoy/semana/mes: todos los buckets caen dentro del mes ART).
-  const monthOrders = await prisma.order.findMany({
-    where: { createdAt: { gte: monthStart } },
+  // Pedidos desde el mes anterior: cubre hoy/semana/mes (la semana puede arrancar
+  // en el mes anterior) y la comparación contra el mismo período del mes previo.
+  const orders = await prisma.order.findMany({
+    where: { createdAt: { gte: prevMonthStart } },
     select: { total: true, status: true, createdAt: true },
   });
-  const orderRows: DashboardOrderRow[] = monthOrders.map((o) => ({
-    total: toNumber(o.total),
-    status: o.status,
-    createdAt: o.createdAt,
-  }));
-
-  // Pendientes de acción: estado puntual, no acotado por fecha.
-  const pendingOrders = await prisma.order.findMany({
-    where: { status: { in: ["paid", "preparing"] } },
-    select: { total: true, status: true, createdAt: true },
-  });
-  const pendingRows: DashboardOrderRow[] = pendingOrders.map((o) => ({
+  const orderRows: DashboardOrderRow[] = orders.map((o) => ({
     total: toNumber(o.total),
     status: o.status,
     createdAt: o.createdAt,
@@ -72,32 +70,24 @@ export async function getDashboardData(
     qty: i.qty,
   }));
 
-  // Variantes activas con stock crítico (stock <= umbral), filtrado fino en SQL.
-  const variants = await prisma.productVariant.findMany({
-    where: { active: true, product: { deletedAt: null, active: true } },
-    select: {
-      id: true,
-      name: true,
-      sku: true,
-      stock: true,
-      lowStockThreshold: true,
-      product: { select: { name: true } },
-    },
-  });
-  const variantRows: DashboardVariantRow[] = variants.map((v) => ({
-    id: v.id,
-    productName: v.product.name,
-    variantName: v.name,
-    sku: v.sku,
-    stock: v.stock,
-    lowStockThreshold: v.lowStockThreshold,
-  }));
+  const sales = computeSalesBuckets(orderRows, now);
+  const elapsedMs = now.getTime() - monthStart.getTime();
+  const prevPeriodEnd = new Date(
+    Math.min(prevMonthStart.getTime() + elapsedMs, monthStart.getTime()),
+  );
+  const prevMonthSamePeriod = sumSalesBetween(
+    orderRows,
+    prevMonthStart,
+    prevPeriodEnd,
+  );
 
   return {
-    sales: computeSalesBuckets(orderRows, now),
-    pending: countPendingActions(pendingRows),
+    sales,
     averageTicketMonth: averageTicket(orderRows, monthStart),
+    paidOrdersMonth: countPaidOrders(orderRows, monthStart),
+    prevMonthSamePeriod,
+    monthChangePct: percentChange(sales.month, prevMonthSamePeriod),
+    statusFunnelMonth: ordersByStatus(orderRows, monthStart),
     topProductsMonth: topProducts(itemRows, TOP_PRODUCTS_LIMIT),
-    criticalStock: criticalStock(variantRows).slice(0, CRITICAL_STOCK_LIMIT),
   };
 }

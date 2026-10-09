@@ -8,7 +8,7 @@ La usuaria es **Dana, la dueña, no técnica**. Regla de producto: "tan simple q
 
 | Sub-fase | Qué | Depende de |
 |---|---|---|
-| **7.1 Base** | `/admin/login`, layout `admin/(panel)` con navegación, dashboard (ventas del día/semana, pedidos por estado), kit de UI del admin (`src/components/admin/*` + los primitivos de `src/components/ui/*` que falten), ajustes (`Setting`), arrepentimiento (lista + marcar procesada/rechazada), reseñas (aprobar/rechazar). | — |
+| **7.1 Base** | `/admin/login`, layout `admin/(panel)` con navegación, Inicio (bandeja de acción: pedidos a preparar/despachar, pagos y cupones por vencer, arrepentimientos y reseñas pendientes, stock bajo) y Métricas (ventas hoy/semana/mes vs mes anterior, ticket promedio, más vendidos, pedidos por estado), kit de UI del admin (`src/components/admin/*` + los primitivos de `src/components/ui/*` que falten), ajustes (`Setting`), arrepentimiento (lista + marcar procesada/rechazada), reseñas (aprobar/rechazar). | — |
 | **7.2 Catálogo** | Productos (lista, alta, edición, baja lógica) con variantes talle + color, SKU autogenerado, fotos a Supabase Storage; categorías (2 niveles, prefijo SKU) con el fix de padre inactivo. | 7.1 |
 | **7.3 Ventas** | Pedidos (lista con filtro por estado, detalle, cambio de estado por la máquina de estados, reposición de stock al cancelar), cupones (alta/edición/baja). | 7.1 |
 

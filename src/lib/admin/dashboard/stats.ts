@@ -101,6 +101,58 @@ export function countPendingActions(rows: DashboardOrderRow[]): PendingActions {
   return { toPrepare, toDispatch };
 }
 
+/** Suma `total` de pedidos paid+ con `from <= createdAt < to`. */
+export function sumSalesBetween(
+  rows: DashboardOrderRow[],
+  from: Date,
+  to: Date,
+): number {
+  let sum = 0;
+  for (const r of rows) {
+    const t = r.createdAt.getTime();
+    if (isPaidPlus(r.status) && t >= from.getTime() && t < to.getTime()) {
+      sum += toNumber(r.total);
+    }
+  }
+  return round2(sum);
+}
+
+/** Variación porcentual `current` vs `previous`. `null` si no hay base de comparación. */
+export function percentChange(
+  current: number,
+  previous: number,
+): number | null {
+  if (previous === 0) return null;
+  return Math.round(((current - previous) / previous) * 100);
+}
+
+/** Cantidad de pedidos por estado con `createdAt >= from`. */
+export function ordersByStatus(
+  rows: DashboardOrderRow[],
+  from: Date,
+): Record<OrderStatus, number> {
+  const counts: Record<OrderStatus, number> = {
+    pending_payment: 0,
+    paid: 0,
+    preparing: 0,
+    shipped: 0,
+    delivered: 0,
+    cancelled: 0,
+    refunded: 0,
+  };
+  for (const r of rows) {
+    if (r.createdAt.getTime() >= from.getTime()) counts[r.status] += 1;
+  }
+  return counts;
+}
+
+/** Cantidad de pedidos paid+ con `createdAt >= from`. */
+export function countPaidOrders(rows: DashboardOrderRow[], from: Date): number {
+  return rows.filter(
+    (r) => isPaidPlus(r.status) && r.createdAt.getTime() >= from.getTime(),
+  ).length;
+}
+
 /** Ticket promedio: promedio de `total` de pedidos paid+ con `createdAt >= from`. */
 export function averageTicket(rows: DashboardOrderRow[], from: Date): number {
   let sum = 0;
