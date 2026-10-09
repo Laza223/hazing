@@ -29,6 +29,24 @@ describe("resolveCheckoutResultStatus", () => {
     );
   });
 
+  it("cancelled con algún Payment approved → paid_on_cancelled (se devuelve a mano)", () => {
+    expect(
+      resolveCheckoutResultStatus(
+        { status: "cancelled" },
+        { status: "approved" },
+        true,
+      ),
+    ).toBe("paid_on_cancelled");
+    // Un pedido refunded ya fue devuelto: sigue siendo failed.
+    expect(
+      resolveCheckoutResultStatus(
+        { status: "refunded" },
+        { status: "approved" },
+        true,
+      ),
+    ).toBe("failed");
+  });
+
   it("pending_payment con último Payment rejected/cancelled → failed", () => {
     expect(
       resolveCheckoutResultStatus(

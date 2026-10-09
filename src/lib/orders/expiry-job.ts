@@ -1,4 +1,8 @@
-import { findExpiredOrderIds, type ExpirableOrder } from "@/lib/orders/expiry";
+import {
+  findExpiredOrderIds,
+  ORDER_EXPIRY_HOURS,
+  type ExpirableOrder,
+} from "@/lib/orders/expiry";
 import type { PrismaTransactionClient } from "@/lib/prisma";
 
 export interface ExpiryJobDb {
@@ -24,10 +28,19 @@ export async function runOrderExpiryJob(
   deps: ExpiryJobDeps,
 ): Promise<{ cancelled: number }> {
   const orders = await deps.db.order.findMany({
-    where: { status: "pending_payment" },
+    // Un pago en curso/aprobado (el link de MP puede quedar abierto) no se cancela: lo resuelve el
+    // webhook. Cancelarlo dejaría a la clienta cobrada sobre un pedido muerto.
+    where: {
+      status: "pending_payment",
+      payments: { none: { status: { in: ["in_process", "approved"] } } },
+    },
     select: { id: true, status: true, createdAt: true },
   });
-  const expired = findExpiredOrderIds(orders, deps.now, deps.hours ?? 24);
+  const expired = findExpiredOrderIds(
+    orders,
+    deps.now,
+    deps.hours ?? ORDER_EXPIRY_HOURS,
+  );
   let cancelled = 0;
   for (const id of expired) {
     await deps.db.$transaction(async (tx) => {

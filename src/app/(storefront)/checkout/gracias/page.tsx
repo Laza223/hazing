@@ -35,7 +35,7 @@ export default async function GraciasPage({
         where: { id: orderId },
         include: {
           items: true,
-          payments: { orderBy: { createdAt: "desc" }, take: 1 },
+          payments: { orderBy: { createdAt: "desc" } },
         },
       })
     : null;
@@ -57,7 +57,11 @@ export default async function GraciasPage({
   }
 
   const lastPayment = order.payments[0] ?? null;
-  const status = resolveCheckoutResultStatus(order, lastPayment);
+  const status = resolveCheckoutResultStatus(
+    order,
+    lastPayment,
+    order.payments.some((p) => p.status === "approved"),
+  );
   // analytics: purchase (PostHog, Fase 10 — se dispara acá cuando status === "paid",
   // ver docs/spec/08-checkout.md §3.8).
   const canRetry =
@@ -75,7 +79,7 @@ export default async function GraciasPage({
       {status === "pending" && (
         <Clock className="mx-auto size-14 text-ink-3" aria-hidden />
       )}
-      {status === "failed" && (
+      {(status === "failed" || status === "paid_on_cancelled") && (
         <XCircle className="mx-auto size-14 text-ink-3" aria-hidden />
       )}
 
@@ -84,6 +88,7 @@ export default async function GraciasPage({
           `¡Gracias! Tu pedido ${order.orderNumber} está confirmado`}
         {status === "pending" && "Estamos confirmando tu pago"}
         {status === "failed" && "El pago no se completó"}
+        {status === "paid_on_cancelled" && "Tu pedido ya había vencido"}
       </h1>
 
       <p className="mt-2 text-ink-2">
@@ -91,6 +96,8 @@ export default async function GraciasPage({
         {status === "paid" && " — te mandamos el detalle por email."}
         {status === "pending" &&
           " — apenas se acredite, te llega el email de confirmación."}
+        {status === "paid_on_cancelled" &&
+          " — Recibimos tu pago, pero el pedido ya había vencido. Te vamos a devolver el dinero y nos vamos a comunicar con vos."}
       </p>
 
       <div className="mx-auto mt-8 max-w-sm border border-line p-5 text-left text-sm">

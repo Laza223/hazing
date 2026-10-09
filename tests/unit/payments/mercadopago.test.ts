@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
-import { createPreference } from "@/lib/payments/mercadopago";
+import {
+  buildPreferenceBody,
+  createPreference,
+} from "@/lib/payments/mercadopago";
+import { ORDER_EXPIRY_HOURS } from "@/lib/orders/expiry";
 
 function fakeFetch(): typeof fetch {
   return vi.fn(
@@ -35,5 +39,25 @@ describe("createPreference — back_urls", () => {
       expect(url).not.toContain("orden=");
       expect(url).not.toContain("HZG-000123");
     }
+  });
+});
+
+describe("buildPreferenceBody — vencimiento", () => {
+  it("el link de pago vence a las ORDER_EXPIRY_HOURS (ISO 8601)", () => {
+    const now = new Date("2026-10-09T12:00:00.000Z");
+    const body = buildPreferenceBody(
+      {
+        orderId: "5f2c1a10-1111-4a11-8a11-0123456789ab",
+        orderNumber: "HZG-000123",
+        items: [{ title: "Producto", quantity: 1, unit_price: 100 }],
+        payerEmail: "ana@example.com",
+        appUrl: "https://hazing.store",
+        notificationUrl: "https://hazing.store/api/webhooks/mercadopago",
+      },
+      now,
+    );
+    expect(ORDER_EXPIRY_HOURS).toBe(24);
+    expect(body.expires).toBe(true);
+    expect(body.expiration_date_to).toBe("2026-10-10T09:00:00.000-03:00");
   });
 });

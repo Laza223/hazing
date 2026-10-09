@@ -29,6 +29,14 @@ export interface UnpaidOrderTask {
   deadline: string;
 }
 
+export interface RefundDueTask {
+  id: string;
+  orderNumber: string;
+  contactName: string;
+  total: number;
+  age: string;
+}
+
 export interface CouponTask {
   id: string;
   code: string;
@@ -46,6 +54,8 @@ export interface ActionData {
   toPrepare: OrderTask[];
   toDispatch: OrderTask[];
   unpaidExpiring: UnpaidOrderTask[];
+  /** Pedidos cancelados/reembolsados con un pago aprobado: la plata hay que devolverla a mano en MP. */
+  refundsDue: RefundDueTask[];
   couponsExpiring: CouponTask[];
   retractionsPending: RetractionTask[];
   reviewsPending: number;
@@ -62,6 +72,7 @@ export async function getActionData(
   const [
     workOrders,
     unpaidOrders,
+    refundOrders,
     coupons,
     retractions,
     reviewsPending,
@@ -82,6 +93,21 @@ export async function getActionData(
     prisma.order.findMany({
       where: { status: "pending_payment" },
       orderBy: { createdAt: "asc" },
+      take: LIST_LIMIT,
+      select: {
+        id: true,
+        orderNumber: true,
+        contactName: true,
+        total: true,
+        createdAt: true,
+      },
+    }),
+    prisma.order.findMany({
+      where: {
+        status: { in: ["cancelled", "refunded"] },
+        payments: { some: { status: "approved" } },
+      },
+      orderBy: { createdAt: "desc" },
       take: LIST_LIMIT,
       select: {
         id: true,
@@ -120,7 +146,7 @@ export async function getActionData(
     }),
   ]);
 
-  const toTask = (o: (typeof workOrders)[number]): OrderTask => ({
+  const toTask = (o: (typeof refundOrders)[number]): OrderTask => ({
     id: o.id,
     orderNumber: o.orderNumber,
     contactName: o.contactName,
@@ -147,6 +173,7 @@ export async function getActionData(
       total: toNumber(o.total),
       deadline: describeOrderExpiry(hoursUntilExpiry(o.createdAt, now)),
     })),
+    refundsDue: refundOrders.map(toTask),
     couponsExpiring: coupons.flatMap((c) =>
       c.validTo
         ? [

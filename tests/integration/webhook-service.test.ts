@@ -477,6 +477,76 @@ describe("processWebhook", () => {
     expect(state.order.status).toBe("cancelled");
   });
 
+  describe("approved sobre pedido cerrado (cobro que no se reactiva)", () => {
+    const approvedDeps = (db: any, over: Partial<ProcessWebhookDeps> = {}) =>
+      makeDeps({ db, ...over });
+    const run = (deps: ProcessWebhookDeps) =>
+      processWebhook(
+        { dataId: "mp-pay-1", xSignature: "ok", xRequestId: "r" },
+        deps,
+      );
+
+    it.each(["cancelled", "refunded"])(
+      "pedido %s + approved → no se reactiva, mail a la dueña con pedido/monto/ID MP",
+      async (closed) => {
+        const { db, state } = makeFakeDb();
+        state.order.status = closed;
+        const deps = approvedDeps(db);
+        const err = vi.spyOn(console, "error").mockImplementation(() => {});
+        const r = await run(deps);
+        expect(r.status).toBe(200);
+        expect(state.order.status).toBe(closed);
+        expect(state.variants.get("v1")).toBe(5);
+        expect(state.shipments).toHaveLength(0);
+        expect(state.payments[0].status).toBe("approved");
+        const calls = (deps.sendEmail as any).mock.calls;
+        expect(calls).toHaveLength(1);
+        expect(calls[0][0].to).toBe("owner@test.com");
+        expect(calls[0][0].text).toContain("HZG-000009");
+        expect(calls[0][0].text).toContain("mp-pay-1");
+        expect(calls[0][0].text).toContain("devolvé a mano");
+        expect(err).toHaveBeenCalledWith(expect.stringContaining("HZG-000009"));
+        err.mockRestore();
+      },
+    );
+
+    it("el mismo aviso 2× no repite el mail (idempotente)", async () => {
+      const { db, state } = makeFakeDb();
+      state.order.status = "cancelled";
+      const deps = approvedDeps(db);
+      const err = vi.spyOn(console, "error").mockImplementation(() => {});
+      await run(deps);
+      await run(deps);
+      expect((deps.sendEmail as any).mock.calls).toHaveLength(1);
+      err.mockRestore();
+    });
+
+    it("un fallo de Resend en el aviso NO voltea el webhook", async () => {
+      const { db, state } = makeFakeDb();
+      state.order.status = "cancelled";
+      const deps = approvedDeps(db, {
+        sendEmail: vi.fn(async () => {
+          throw new Error("Resend caído");
+        }),
+      });
+      const err = vi.spyOn(console, "error").mockImplementation(() => {});
+      const r = await run(deps);
+      expect(r.status).toBe(200);
+      expect(state.order.status).toBe("cancelled");
+      err.mockRestore();
+    });
+
+    it("pedido paid + approved repetido → sin aviso de cobro sobre cerrado", async () => {
+      const { db, state } = makeFakeDb();
+      const deps = approvedDeps(db);
+      await run(deps);
+      await run(deps);
+      expect(state.order.status).toBe("paid");
+      // Solo los 2 mails del pago original.
+      expect((deps.sendEmail as any).mock.calls).toHaveLength(2);
+    });
+  });
+
   it("pedido inexistente → 200 (ack)", async () => {
     const deps = makeDeps({
       getPayment: vi.fn(async () => ({

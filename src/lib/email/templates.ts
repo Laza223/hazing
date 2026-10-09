@@ -148,6 +148,34 @@ export function newOrderAlertEmail(d: OrderEmailData): EmailContent {
   return { subject, html, text };
 }
 
+export interface ApprovedOnClosedOrderData {
+  orderNumber: string;
+  orderStatus: "cancelled" | "refunded";
+  amount: number;
+  mpPaymentId: string;
+}
+
+/** Alerta a la dueña: MP cobró sobre un pedido cancelado/reembolsado. No se reactiva: se devuelve a mano. */
+export function approvedOnClosedOrderEmail(
+  d: ApprovedOnClosedOrderData,
+): EmailContent {
+  const label = d.orderStatus === "cancelled" ? "cancelado" : "reembolsado";
+  const subject = `Cobro sobre pedido ${label} — devolvé a mano — ${d.orderNumber}`;
+  const text = `Cobro sobre pedido ${label}: devolvé a mano.
+Pedido: ${d.orderNumber}
+Monto: ${formatARS(d.amount)}
+ID de pago MP: ${d.mpPaymentId}
+El pedido no se reactiva; hacé la devolución desde MercadoPago.`;
+  const html = `<div style="font-family:Georgia,serif;color:${INK}">
+    <h1 style="font-weight:400">Cobro sobre pedido ${label} — devolvé a mano</h1>
+    <div style="border:1px solid ${INK};padding:8px">
+      <p>Pedido: <strong>${escapeHtml(d.orderNumber)}</strong><br/>Monto: <strong>${formatARS(d.amount)}</strong><br/>ID de pago MP: <strong>${escapeHtml(d.mpPaymentId)}</strong></p>
+    </div>
+    <p>El pedido no se reactiva; hacé la devolución desde MercadoPago.</p>
+  </div>`;
+  return { subject, html, text };
+}
+
 export interface AbandonedCartEmailData {
   name?: string | null;
   items: OrderEmailItem[];

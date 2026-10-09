@@ -1,4 +1,5 @@
 import type { PaymentStatus } from "@prisma/client";
+import { ORDER_EXPIRY_HOURS } from "@/lib/orders/expiry";
 
 const MP_API = "https://api.mercadopago.com";
 // Sin esto, un MP colgado (no error HTTP, directamente no responde) cuelga el checkout
@@ -35,13 +36,16 @@ export interface MpPreference {
   sandbox_init_point?: string;
 }
 
-/** Crea una preference de Checkout Pro (efectivo excluido, auto_return approved). */
-export async function createPreference(
-  input: CreatePreferenceInput,
-  deps: MpDeps = {},
-): Promise<MpPreference> {
-  const { fetchFn, token } = resolveDeps(deps);
-  const body = {
+/** Arma el body de la preference de Checkout Pro (pura, testeable). */
+/** ISO con offset explícito de Argentina (-03:00, sin horario de verano), el
+ *  formato de los ejemplos de MP para `expiration_date_to`. */
+function toArtIso(d: Date): string {
+  const art = new Date(d.getTime() - 3 * 3600_000);
+  return art.toISOString().replace("Z", "-03:00");
+}
+
+export function buildPreferenceBody(input: CreatePreferenceInput, now: Date) {
+  return {
     items: input.items.map((it, i) => ({
       id: String(i),
       currency_id: "ARS",
@@ -62,9 +66,24 @@ export async function createPreference(
       excluded_payment_types: [{ id: "ticket" }, { id: "atm" }],
       installments: 12,
     },
+    // El link de pago vence junto con el pedido: runOrderExpiryJob lo cancela a las
+    // ORDER_EXPIRY_HOURS y un pago aprobado después quedaría cobrado sobre un pedido muerto.
+    expires: true,
+    expiration_date_to: toArtIso(
+      new Date(now.getTime() + ORDER_EXPIRY_HOURS * 3600_000),
+    ),
     statement_descriptor: "HAZING",
     metadata: { order_number: input.orderNumber },
   };
+}
+
+/** Crea una preference de Checkout Pro (efectivo excluido, auto_return approved). */
+export async function createPreference(
+  input: CreatePreferenceInput,
+  deps: MpDeps = {},
+): Promise<MpPreference> {
+  const { fetchFn, token } = resolveDeps(deps);
+  const body = buildPreferenceBody(input, new Date());
   const res = await fetchFn(`${MP_API}/checkout/preferences`, {
     method: "POST",
     headers: {

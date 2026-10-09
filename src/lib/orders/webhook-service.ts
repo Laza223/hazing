@@ -13,6 +13,7 @@ import { sendEmail as realSendEmail } from "@/lib/email/resend";
 import {
   orderConfirmationEmail,
   newOrderAlertEmail,
+  approvedOnClosedOrderEmail,
   type OrderEmailData,
 } from "@/lib/email/templates";
 import { toNumber } from "@/lib/catalog/pricing";
@@ -166,6 +167,11 @@ export async function processWebhook(
   // Los efectos "una sola vez" (stock, cupón, shipment, emails) se gatean por esto, no por el
   // estado leído antes de la tx — así MP entregando el mismo aviso en paralelo no doble-descuenta.
   let wonPaidTransition = false;
+  // MP aprobó un pago sobre un pedido cancelado/refunded: la plata entró y el pedido NO se
+  // reactiva (decisión de la dueña) → se avisa para devolver a mano en MercadoPago.
+  let approvedOnClosedOrder: "cancelled" | "refunded" | null = null;
+  const closedStatus = (s: OrderStatus): "cancelled" | "refunded" | null =>
+    s === "cancelled" || s === "refunded" ? s : null;
 
   // 5. Aplicar en tx.
   await deps.db.$transaction(async (tx: PrismaTransactionClient) => {
@@ -180,6 +186,8 @@ export async function processWebhook(
       },
       orderBy: { createdAt: "asc" },
     });
+    // Dedupe del aviso: MP puede notificar varias veces el mismo pago ya aprobado.
+    const alreadyApproved = existingPayment?.status === "approved";
     if (existingPayment) {
       // Monotonía: un webhook reordenado (ej. "in_process" viejo reintentado después de que ya
       // llegó "approved") no debe hacer retroceder el status — solo se pisa si avanza o iguala.
@@ -219,6 +227,14 @@ export async function processWebhook(
         data: { status: "paid" },
       });
       wonPaidTransition = res.count === 1;
+      if (!wonPaidTransition && !alreadyApproved) {
+        // Perdió la guarda: ¿otro webhook ganó (paid) o el pedido se cerró entre la lectura y acá?
+        const fresh = await tx.order.findFirst({
+          where: { id: order.id },
+          select: { status: true },
+        });
+        approvedOnClosedOrder = fresh ? closedStatus(fresh.status) : null;
+      }
     } else if (effects.setOrderStatusTo) {
       // Misma guarda atómica que la transición a "paid": precondición sobre el status con el que
       // se calcularon los `effects` (order.status, leído fuera de la tx). Si otra invocación ya
@@ -229,6 +245,15 @@ export async function processWebhook(
         where: { id: order.id, status: order.status },
         data: { status: effects.setOrderStatusTo },
       });
+    }
+
+    // approved pero el pedido ya estaba cancelado/refunded: no hay transición posible.
+    if (
+      paymentStatus === "approved" &&
+      !effects.setOrderStatusTo &&
+      !alreadyApproved
+    ) {
+      approvedOnClosedOrder = closedStatus(order.status);
     }
 
     // Efectos de una sola vez: SOLO si este webhook ganó la transición a paid.
@@ -408,6 +433,39 @@ export async function processWebhook(
       console.error(
         `[webhook] envío de emails falló (pedido ${order.orderNumber}):`,
         msg,
+      );
+    }
+  }
+
+  // Aviso a la dueña (best-effort: el estado ya quedó persistido; un fallo de mail no voltea el webhook).
+  if (approvedOnClosedOrder) {
+    const amount = mpPayment.transaction_amount ?? toNumber(order.total);
+    console.error(
+      `[webhook] pago aprobado sobre pedido ${approvedOnClosedOrder === "cancelled" ? "cancelado" : "reembolsado"} ${order.orderNumber} (MP pago ${mpPayment.id}, monto ${amount}): devolver a mano en MercadoPago`,
+    );
+    try {
+      if (deps.ownerEmail) {
+        const owner = approvedOnClosedOrderEmail({
+          orderNumber: order.orderNumber,
+          orderStatus: approvedOnClosedOrder,
+          amount,
+          mpPaymentId: String(mpPayment.id),
+        });
+        await deps.sendEmail({
+          to: deps.ownerEmail,
+          subject: owner.subject,
+          html: owner.html,
+          text: owner.text,
+        });
+      } else {
+        console.error(
+          `[webhook] RESEND_OWNER_EMAIL no configurada: la dueña no recibió el aviso de cobro sobre ${order.orderNumber}`,
+        );
+      }
+    } catch (e) {
+      console.error(
+        `[webhook] aviso de cobro sobre pedido cerrado falló (pedido ${order.orderNumber}):`,
+        e instanceof Error ? e.message : String(e),
       );
     }
   }

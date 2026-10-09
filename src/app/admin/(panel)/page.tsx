@@ -8,6 +8,7 @@ import {
   RotateCcw,
   Star,
   AlertTriangle,
+  Undo2,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/admin/page-header";
@@ -62,6 +63,7 @@ export default async function AdminHomePage() {
   const total =
     data.toPrepare.length +
     data.toDispatch.length +
+    data.refundsDue.length +
     data.couponsExpiring.length +
     data.retractionsPending.length +
     data.reviewsPending +
@@ -109,6 +111,24 @@ export default async function AdminHomePage() {
                   title={`${o.orderNumber} · ${o.contactName}`}
                   detail={formatARS(o.total)}
                   tag={o.age}
+                />
+              ))}
+            </ul>
+          )}
+        </PanelCard>
+
+        <PanelCard icon={Undo2} title="Devoluciones por hacer">
+          {data.refundsDue.length === 0 ? (
+            <Empty>No hay pagos aprobados sobre pedidos cancelados.</Empty>
+          ) : (
+            <ul className="divide-y divide-line">
+              {data.refundsDue.map((o) => (
+                <Row
+                  key={o.id}
+                  href={`/admin/pedidos/${o.id}`}
+                  title={`${o.orderNumber} · ${o.contactName}`}
+                  detail={formatARS(o.total)}
+                  tag="Devolvé en MercadoPago"
                 />
               ))}
             </ul>

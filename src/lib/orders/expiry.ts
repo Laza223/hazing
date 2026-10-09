@@ -1,5 +1,8 @@
 import type { OrderStatus } from "@prisma/client";
 
+/** Ventana de autocancelación de pedidos sin pagar; también vence el link de pago de MP. */
+export const ORDER_EXPIRY_HOURS = 24;
+
 export interface ExpirableOrder {
   id: string;
   status: OrderStatus;
@@ -13,7 +16,7 @@ export interface ExpirableOrder {
 export function findExpiredOrderIds(
   orders: ExpirableOrder[],
   now: Date,
-  hours = 24,
+  hours = ORDER_EXPIRY_HOURS,
 ): string[] {
   const cutoff = now.getTime() - hours * 3600_000;
   return orders

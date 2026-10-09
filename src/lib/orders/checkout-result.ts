@@ -5,7 +5,12 @@ import type { OrderStatus, PaymentStatus } from "@prisma/client";
  * La fuente de verdad es SIEMPRE la DB (el webhook), nunca el query param de
  * MP — por eso esto solo mira `Order.status` + el último `Payment`.
  */
-export type CheckoutResultStatus = "paid" | "pending" | "failed";
+export type CheckoutResultStatus =
+  | "paid"
+  | "pending"
+  | "failed"
+  /** Pedido cancelado (venció) pero MP aprobó un pago: se devuelve a mano. */
+  | "paid_on_cancelled";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -35,8 +40,11 @@ export interface ResultPaymentLike {
 export function resolveCheckoutResultStatus(
   order: ResultOrderLike,
   lastPayment: ResultPaymentLike | null,
+  hasApprovedPayment = false,
 ): CheckoutResultStatus {
   if (PAID_STATUSES.includes(order.status)) return "paid";
+  if (order.status === "cancelled" && hasApprovedPayment)
+    return "paid_on_cancelled";
   if (FAILED_ORDER_STATUSES.includes(order.status)) return "failed";
   if (lastPayment && FAILED_PAYMENT_STATUSES.includes(lastPayment.status))
     return "failed";
