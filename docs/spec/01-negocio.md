@@ -28,7 +28,7 @@ Ver [`00-handoff.md` §3](00-handoff.md) para el detalle completo. Resumen:
 | 1 | Cuentas e infraestructura separadas de glamify | RESUELTA | — |
 | 2 | Paleta blanco/negro/grises, "hiper mega premium" | RESUELTA | Fase 5 |
 | 3 | Origen de despacho: Luján CP 6700 | RESUELTA | — |
-| 4 | Costo de envío base (tabla `ShippingZone` de glamify como punto de partida) | PARCIAL | Fase 9 |
+| 4 | Costo de envío: cotización en vivo MiCorreo como glamify ([ADR 0004](../decisions/0004-cotizacion-de-envio-en-vivo.md)); fallback `ShippingZone` (tabla de glamify como punto de partida) | PARCIAL | Fase 9 |
 | 5 | Esquema de talles | **RESUELTA** (2026-09-03, ver [ADR 0001](../decisions/0001-esquema-talles.md)) | Fase 3 |
 | 6 | CUIT/CUIL para MercadoPago | PENDIENTE | Fase 8 (conectar cuenta real) |
 | 7 | Dominio | PENDIENTE | Fase 10 (deploy final) |
@@ -45,6 +45,6 @@ Heredados de glamify + nuevos de Hazing — ver [`00-handoff.md` §5](00-handoff
 - Emojis como íconos: prohibido (Lucide SVG).
 - Stock falso / urgencia falsa: prohibido.
 - Deploy fuera de Vercel: descartado salvo ADR nuevo (era Cloudflare Workers hasta el ADR 0005, 2026-09-24).
-- API de envío (MiCorreo/PaqAr/Zipnova) en v1: descartado.
+- Auto-import/despacho por API de courier y Zipnova en v1: descartados. La cotización en vivo con MiCorreo SÍ va (ADR 0004).
 - Facturación automática en v1: descartada.
 - Popups de descuento al entrar, badges rojos, countdowns de urgencia: prohibidos (§8.8).

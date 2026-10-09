@@ -15,7 +15,7 @@ Montos ARS `Decimal(12,2)` (nunca float/centavos) · timestamps UTC, conversión
 ## Los tres deltas respecto de glamify
 
 1. **Fiscal:** sin facturación en v1 (ver [01-negocio.md](01-negocio.md)).
-2. **Envío:** sin API — se elimina el módulo `src/lib/shipping/*` de adapter/JWT/REST de MiCorreo. `ShippingZone` es la única fuente de costo (no fallback), vía `src/lib/shipping/quote.ts` — módulo NUEVO (no existe en glamify): cotiza por provincia o rango de CP contra las zonas activas y tira error explícito si ninguna matchea (mejor eso que cobrar de más/de menos por defecto). `ShipmentStatus` avanza a mano desde el admin.
+2. **Envío:** cotización en vivo igual que glamify ([ADR 0004](../decisions/0004-cotizacion-de-envio-en-vivo.md), revierte la decisión "sin API" del 2026-09-03): `src/lib/shipping/index.ts` orquesta gratis por umbral → `micorreo.ts` (API oficial, CP/peso/método) → fallback `ShippingZone` vía `quote.ts`. Despacho manual: sin auto-import; `ShipmentStatus` avanza a mano desde el admin. **Estado:** el `quote.ts` actual de Hazing cotiza solo por zonas y tira error si ninguna matchea (versión anterior); se reemplaza al portar.
 3. **Catálogo:** variante = talle + color (ver [ADR 0001](../decisions/0001-esquema-talles.md)), no tono.
 
 ## Mapa de módulos — qué se copió de glamify (Fase 4, cerrada 2026-09-03)
@@ -24,7 +24,7 @@ Montos ARS `Decimal(12,2)` (nunca float/centavos) · timestamps UTC, conversión
 |---|---|---|
 | Cliente DB | `src/lib/prisma.ts` | Copiado exacto; el 2026-09-24 pasó de por-request (Workers) a singleton perezoso, igual que glamify (ADR 0005) |
 | MercadoPago Checkout Pro + webhook | `src/lib/payments/*` | Copiado, `statement_descriptor`/branding → HAZING |
-| Checkout + webhook de pedido | `src/lib/orders/checkout-service.ts`, `webhook-service.ts` | Adaptado: sin combos, sin `weightGr`, sin auto-import a MiCorreo (delta #2) — el Shipment queda `pending` para carga manual |
+| Checkout + webhook de pedido | `src/lib/orders/checkout-service.ts`, `webhook-service.ts` | Adaptado: sin combos, sin auto-import a MiCorreo (delta #2) — el Shipment queda `pending` para carga manual. `weightGr` se reincorpora para cotizar (ADR 0004; el port actual todavía no lo tiene) |
 | Máquina de estados + expiry | `src/lib/orders/state-machine.ts`, `expiry.ts`, `expiry-job.ts`, `stock.ts`, `order-number.ts` | Copiado/adaptado (prefijo `HZG-`, sin rama de combo en `stock.ts`) |
 | Auth y guards | `src/lib/admin/auth.ts` (`requireAdmin`) + `src/lib/supabase/*` | Copiado exacto |
 | Carrito | `src/lib/cart/*` | Adaptado: `CartLine` sin `kind: "combo"` ni `weightGr` |
@@ -33,15 +33,15 @@ Montos ARS `Decimal(12,2)` (nunca float/centavos) · timestamps UTC, conversión
 | Email transaccional | `src/lib/email/resend.ts`, `templates.ts` | Estructura copiada, templates reescritos con branding Hazing (sin rosa, sin emoji) |
 | Guard de escritura en DB | `scripts/prod-write-guard.ts` | Copiado exacto |
 | Cron horario | `src/app/api/cron/route.ts`, `vercel.json` | Copiado de glamify post-Vercel (abandoned cart + order expiry, protegido con `CRON_SECRET`). Reemplazó a `worker.ts` + `src/lib/cron/deps.ts` (ADR 0005) |
-| Cotización de envío | — (no existe en glamify) | **Nuevo**: `src/lib/shipping/quote.ts`, ver delta #2 arriba |
+| Cotización de envío | `src/lib/shipping/index.ts`, `micorreo.ts`, `quote.ts`, `tracking.ts` | **Pendiente de portar** (ADR 0004). Hoy existe un `quote.ts` propio solo por zonas, que se reemplaza |
 
 Pendiente para fases siguientes (no es que falte copiar, es que no es Fase 4): `src/lib/legal/retraction/*` (Botón de Arrepentimiento), `src/lib/reviews/*`, `src/lib/customer/*`, el Route Handler `/api/webhooks/mercadopago` y toda la UI (Fases 6-9).
 
-Módulos que NO se copian nunca: `src/lib/shipping/micorreo.ts`, `zipnova.ts`, `index.ts`, `tracking.ts`, `correo.ts` (adapter/JWT/REST — delta #2) · `src/lib/orders/auto-shipment.ts` (100% MiCorreo, sin equivalente en envío manual).
+Módulos que NO se copian nunca: `src/lib/shipping/zipnova.ts`, `correo.ts` (cancelados/huérfanos en glamify) · `src/lib/orders/auto-shipment.ts` (auto-import a MiCorreo, sin equivalente en despacho manual). `shipping/micorreo.ts`, `index.ts`, `quote.ts` y `tracking.ts` SÍ se portan (ADR 0004).
 
 ## Variables de entorno
 
-Ver `.env.example` (Fase 1). Sin `MICORREO_*` ni `ZIPNOVA_*` (no existen en Hazing).
+Ver `.env.example` (Fase 1). `MICORREO_EMAIL`, `MICORREO_PASSWORD`, `MICORREO_GATEWAY_AUTH`, `MICORREO_SANDBOX` (y opcionales `MICORREO_VELOCITY`, `MICORREO_ORIGIN_CP`) para la cotización, cuando se porte (ADR 0004); sin `ZIPNOVA_*`.
 
 ## Definition of Done por cambio
 

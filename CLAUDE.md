@@ -6,7 +6,7 @@ Guía para Claude Code en este repositorio.
 
 Ecommerce B2C de ropa femenina para Argentina (Luján / envíos a todo el país). Stack serverless Next.js 15 en Vercel + Supabase Postgres vía Prisma adapter ([ADR 0005](docs/decisions/0005-deploy-en-vercel.md)). Blanco y negro, "hiper mega premium" — ver §8 del handoff, resumido abajo.
 
-Arquitectura calcada de `glamify-makeup` (otro ecommerce propio, en producción con plata real), con tres deltas: sin facturación en v1, envío 100% manual (sin API de courier), catálogo de ropa (talle + color en vez de tono). Fuente de verdad del producto: [`docs/spec/`](docs/spec/) (negocio → funcional → técnica → calidad, basados en `docs/spec/00-handoff.md`). Decisiones de arquitectura: [`docs/decisions/`](docs/decisions/).
+Arquitectura calcada de `glamify-makeup` (otro ecommerce propio, en producción con plata real), con tres deltas: sin facturación en v1, despacho 100% manual con cotización de envío en vivo igual que glamify ([ADR 0004](docs/decisions/0004-cotizacion-de-envio-en-vivo.md)), catálogo de ropa (talle + color en vez de tono). Fuente de verdad del producto: [`docs/spec/`](docs/spec/) (negocio → funcional → técnica → calidad, basados en `docs/spec/00-handoff.md`). Decisiones de arquitectura: [`docs/decisions/`](docs/decisions/).
 
 ## Comandos y Definition of Done
 
@@ -34,7 +34,7 @@ Resto:
 - **PostgreSQL vía Supabase** (Auth + Storage) · **Prisma ORM** con driver adapter (`@prisma/adapter-pg`), igual que glamify — ver [ADR 0002](docs/decisions/0002-prisma-en-workers.md) y ADR 0005.
 - **Cliente DB:** `src/lib/prisma.ts` es un singleton **perezoso** en `globalThis` detrás de un `Proxy` (calcado de glamify). Nunca construirlo al importar el módulo: `next build` importa los Route Handlers sin ejecutarlos y rompería sin `DATABASE_URL`.
 - **MercadoPago Checkout Pro:** `src/lib/payments/*` + `src/lib/orders/checkout-service.ts`/`webhook-service.ts` listos como librería (pagos instantáneos, efectivo/offline excluido, webhook con firma HMAC + idempotencia por `mpPaymentId`). El Route Handler `/api/webhooks/mercadopago` y la UI de checkout se cablean en Fase 8.
-- **Envíos:** sin API (delta vs. glamify) — `src/lib/shipping/quote.ts` (módulo nuevo, no existe en glamify) cotiza SOLO contra `ShippingZone` activa por provincia/rango de CP; sin match, tira error explícito (no hay fallback). `ShipmentStatus` avanza a mano desde el admin ("marcar despachado" + tracking freeform, Fase 9).
+- **Envíos:** cálculo igual que glamify ([ADR 0004](docs/decisions/0004-cotizacion-de-envio-en-vivo.md)) — gratis por umbral → cotización en vivo con la API oficial de MiCorreo (CP, peso, método) → fallback `ShippingZone`. Despacho 100% manual, sin auto-import: `ShipmentStatus` avanza a mano desde el admin ("marcar despachado" + tracking freeform, Fase 9). **Estado:** hoy `src/lib/shipping/quote.ts` cotiza SOLO por `ShippingZone` (versión de la decisión anterior); el port del resto y `weightGr` están pendientes.
 - **Resend:** email transaccional (`src/lib/email/*`, templates con branding Hazing sin rosa/emoji) · **PostHog:** analítica (pendiente, Fase 6+) · **Cron:** Vercel Cron horario (`vercel.json`) → `src/app/api/cron/route.ts`, protegido con `Authorization: Bearer $CRON_SECRET` (abandoned cart + order expiry).
 
 ## Arquitectura del código
@@ -44,7 +44,7 @@ Patrón: **Next.js App Router + servicios desacoplados en `src/lib/*`**. La lóg
 - `src/app/(storefront)/*` — Storefront: home, `/tienda`, `/producto/[slug]`, `/carrito`, `/checkout`, `/cuenta`, `/ingresar`, `/arrepentimiento`, páginas legales/institucionales.
 - `src/app/admin/*` — Panel admin: `/admin/login`, `/admin/(panel)` (`/pedidos`, `/productos`, `/categorias`, `/cupones`, `/resenas`).
 - `src/app/api/*` — Route Handlers exclusivamente para webhooks (`/api/webhooks/mercadopago`), el cron (`/api/cron`), callbacks de auth, sitemap/robots.
-- `src/lib/*` — Dominios: `orders/`, `payments/`, `cart/`, `catalog/`, `admin/`, `coupons/`, `email/`, `supabase/`, `prisma.ts`. `shipping/quote.ts` es el único archivo de `shipping/` — cotiza por `ShippingZone`, sin adapter de courier (delta vs. glamify, que tiene un módulo `shipping/` entero de MiCorreo/Zipnova que Hazing no porta). `customer/` y `reviews/` todavía no existen — se agregan cuando haga falta esa funcionalidad (Fase 6/7).
+- `src/lib/*` — Dominios: `orders/`, `payments/`, `cart/`, `catalog/`, `admin/`, `coupons/`, `email/`, `supabase/`, `prisma.ts`. `shipping/` se porta de glamify (`index.ts`, `micorreo.ts`, `quote.ts`, `tracking.ts`; ADR 0004) — hoy solo existe un `quote.ts` por zonas. NO se portan `zipnova.ts`, `correo.ts` ni `orders/auto-shipment.ts`. `customer/` y `reviews/` todavía no existen — se agregan cuando haga falta esa funcionalidad (Fase 6/7).
 - **Guards y Auth:** Staff vía Supabase Auth → tabla `User` (`role = 'owner' | 'admin'`), `requireAdmin()` en layouts y Server Actions. Clientas vía Supabase Auth (email) → `Customer`. Compras de invitadas guardan contacto/dirección en `Order`.
 
 ## Invariantes de dominio
@@ -69,7 +69,7 @@ Patrón: **Next.js App Router + servicios desacoplados en `src/lib/*`**. La lóg
 - Emojis como íconos: prohibidos (Lucide SVG).
 - Stock falso / urgencia falsa: prohibido.
 - Deploy fuera de Vercel: descartado salvo ADR nuevo (Cloudflare Workers se abandonó en ADR 0005, igual que en glamify).
-- **API de envío (MiCorreo/PaqAr/Zipnova/Mercado Envíos) en v1: descartada.** Despacho 100% manual.
+- **Auto-import / despacho por API de courier, Zipnova y Mercado Envíos API en v1: descartados.** Despacho 100% manual. La cotización en vivo con MiCorreo SÍ va (ADR 0004).
 - **Facturación automática en v1: descartada.**
 - Dark mode: a decidir como parte de la identidad de marca (no es invariante universal).
 
@@ -128,7 +128,7 @@ Respuestas directas, sin intro ni conclusiones. Código y comandos exactos. Si h
 
 **NUNCA**
 
-- `any` (usar `unknown` + type guards). Commitear o pushear a `main` directamente sin que Lazar lo pida. Modificar una migración ya aplicada. Inventar nombres de tablas/columnas/rutas. Hardcodear credenciales o URLs de prod. Agregar dark mode, emojis o contadores de urgencia falsos sin decisión explícita. Editar `scripts/audit-verify.sh` como parte de un fix. Reproponer API de envío o facturación automática en v1.
+- `any` (usar `unknown` + type guards). Commitear o pushear a `main` directamente sin que Lazar lo pida. Modificar una migración ya aplicada. Inventar nombres de tablas/columnas/rutas. Hardcodear credenciales o URLs de prod. Agregar dark mode, emojis o contadores de urgencia falsos sin decisión explícita. Editar `scripts/audit-verify.sh` como parte de un fix. Reproponer auto-import de envíos a un courier, Zipnova o facturación automática en v1.
 
 ## Git
 

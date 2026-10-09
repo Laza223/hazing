@@ -1,6 +1,6 @@
 # Handoff — Ecommerce "Hazing" (ropa)
 
-Repo nuevo desde cero. Arquitectura calcada de `glamify-makeup`, con 3 deltas: sin monotributo/razón social propia, envío manual (sin API), catálogo de ropa en vez de maquillaje. Este doc es la fuente de verdad para la sesión que arranque el repo — leerlo completo antes de tocar código.
+Repo nuevo desde cero. Arquitectura calcada de `glamify-makeup`, con 3 deltas: sin monotributo/razón social propia, despacho manual con cotización de envío en vivo como glamify (ADR 0004), catálogo de ropa en vez de maquillaje. Este doc es la fuente de verdad para la sesión que arranque el repo — leerlo completo antes de tocar código.
 
 ---
 
@@ -29,12 +29,15 @@ Persona física sin monotributo ni razón social. MercadoPago solo pide CUIT/CUI
 
 **Implicancia en el sistema:** no se construye módulo de facturación en v1. `Order`/`OrderItem` ya quedan con snapshot de nombre/monto/fecha suficiente para facturar después, adentro o afuera del sistema, con cualquier CUIT que se decida más adelante.
 
-### 2.2 Envío — SIMPLIFICADO, sin API
-Glamify usa MiCorreo/PaqAr v2 REST + JWT con cotización en vivo por CP/peso. Hazing **no** integra esa API — despacho manual (Correo Argentino o Mercado Envíos, decisión del dueño al momento de despachar, fuera del sistema).
+### 2.2 Envío — cotización en vivo como glamify, despacho manual
+> **Actualizado el 2026-09-24 por [ADR 0004](../decisions/0004-cotizacion-de-envio-en-vivo.md).** La versión original de esta sección (2026-09-03) decidía "sin API de envío, `ShippingZone` única fuente". Se revirtió solo la parte de la cotización; el despacho sigue manual.
+
+El **cálculo de envío es el mismo que en glamify**: gratis por umbral → cotización en vivo con la API oficial de MiCorreo (CP, peso, método) → fallback a `ShippingZone`. El **despacho es manual** (Correo Argentino o Mercado Envíos, decisión de la dueña al momento de despachar, fuera del sistema).
 
 **Implicancia en el sistema:**
-- Se elimina todo el módulo `src/lib/shipping/*` de adapter/JWT/REST.
-- La tabla `ShippingZone` (que en glamify es fallback) pasa a ser la **única fuente** de costo de envío: costo fijo por zona/CP, configurado a mano en el admin, no cotización en vivo.
+- Se porta de glamify `src/lib/shipping/*` (`index.ts`, `micorreo.ts`, `quote.ts`, `tracking.ts`). No se portan `zipnova.ts`, `correo.ts` ni `orders/auto-shipment.ts` (auto-import).
+- La tabla `ShippingZone` queda como **fallback** (igual que en glamify), configurada en el admin y calibrada a costo real de ropa.
+- Se reincorpora `weightGr` (la cotización necesita el peso).
 - `ShipmentStatus` se sigue usando (`pending → ready → dispatched → in_transit → delivered` | `returned`), pero las transiciones las dispara el admin a mano desde el panel (botón "marcar despachado" + campo de tracking freeform opcional), no un webhook de courier.
 
 ### 2.3 Catálogo — ropa, no maquillaje
@@ -101,7 +104,7 @@ Contexto de negocio confirmado: **la dueña de Hazing es la cuñada de Lazar**, 
 - PostgreSQL vía Supabase (Auth + Storage) · Prisma ORM con driver adapter (`@prisma/adapter-pg`)
 - MercadoPago Checkout Pro (tarjeta + dinero en cuenta; `excluded_payment_types: ["ticket","atm"]`)
 - Resend (email transaccional) · PostHog (analítica) · Vercel Cron horario → `/api/cron`
-- Envío: sin API — tabla `ShippingZone` como única fuente (ver §2.2)
+- Envío: cotización en vivo MiCorreo + fallback `ShippingZone`, despacho manual (ver §2.2 y ADR 0004)
 
 Invariantes de dominio que se heredan sin cambios: montos ARS `Decimal(12,2)` (nunca float/centavos), timestamps UTC, UUIDs como PK, enums en inglés británico (`cancelled` doble L), snapshots transaccionales en `OrderItem`, stock solo en variantes, botón de Arrepentimiento obligatorio (Ley 24.240 / Res. 424/2020), Ley 25.326 datos personales.
 
@@ -114,7 +117,7 @@ Mismos de glamify + los nuevos de este proyecto:
 - Emojis como íconos: prohibido (Lucide SVG). Dark mode: a decidir como parte de la identidad de marca (glamify lo prohíbe por decisión propia, no es invariante universal).
 - Stock falso / urgencia falsa: prohibido (ley de consumidor, igual en cualquier ecommerce AR).
 - Deploy fuera de Vercel: descartado salvo ADR nuevo (era "fuera de Cloudflare Workers"; cambió con ADR 0005).
-- **Nuevo — API de envío (MiCorreo/PaqAr/Zipnova) en v1: descartado**, ver §2.2.
+- **Nuevo — auto-import/despacho por API de courier y Zipnova en v1: descartados**, ver §2.2. La cotización en vivo con MiCorreo SÍ va (ADR 0004, revierte el descarte original).
 - **Nuevo — Facturación automática en v1: descartada**, ver §2.1 y §2.4.
 
 ## 6. Plan de ejecución paso a paso
@@ -131,7 +134,7 @@ Repo nuevo en la cuenta de GitHub nueva. `docs/spec/` numerado (negocio → func
 `pnpm format:check` + `lint` + `typecheck` + `test`, scripts calcados de glamify, corriendo en verde sobre el esqueleto vacío. Sin esto, todo lo que sigue es inverificable.
 
 **Fase 3 — Schema Prisma**
-Partir del schema de glamify. Adaptar `ProductVariant` (talle + color en vez de tono). Eliminar toda configuración de API de envío (MiCorreo/JWT). Mantener igual: `Order`, `OrderItem`, `Customer`, `User`, `Coupon`, `Review`, `RetractionRequest`, `Setting`, `ShippingZone`. Migración inicial + seed.
+Partir del schema de glamify. Adaptar `ProductVariant` (talle + color en vez de tono). Eliminar toda configuración de API de envío (MiCorreo/JWT) *(revisado por ADR 0004: se reincorpora `weightGr` y la config de cotización MiCorreo; solo se elimina lo del auto-import)*. Mantener igual: `Order`, `OrderItem`, `Customer`, `User`, `Coupon`, `Review`, `RetractionRequest`, `Setting`, `ShippingZone`. Migración inicial + seed.
 
 **Fase 4 — Infraestructura probada (copiar, no reinventar)**
 `prisma.ts`, `payments/*`, `orders/*`, `cart/*`, `admin/requireAdmin`, `coupons/*`, `prod-write-guard.ts`. Es código ya probado en producción con plata real — copiarlo tal cual y verificar que corre, no reescribirlo.
@@ -148,15 +151,15 @@ Patrón de glamify (`(storefront)`), con el catálogo de §2.3 y el diseño de l
 **Fase 8 — Checkout + MP**
 Copiar exacto de glamify, solo cambiar credenciales (`MP_*` propios). Desarrollar con credenciales de test hasta tener el CUIT/CUIL definitivo (§3.5).
 
-**Fase 9 — Envío simplificado**
-`ShippingZone` con la tabla de glamify como base (mismo origen, CP 6700), ajustando valores al alza por peso/volumen de ropa. Sin adapter de API. Botón de "marcar despachado" + campo de tracking freeform en el panel.
+**Fase 9 — Envío**
+Cotización en vivo con MiCorreo como en glamify (ADR 0004; se consume en el checkout, Fase 8), con `ShippingZone` como fallback: tabla de glamify como base (mismo origen, CP 6700), ajustando valores al alza por peso/volumen de ropa. Sin auto-import. Botón de "marcar despachado" + campo de tracking freeform en el panel.
 
 **Fase 10 — Deploy**
 GitHub Actions `quality` + `deploy` a Vercel con Vercel CLI + token, calcado de glamify (ADR 0005). Secrets propios en las Environment Variables del proyecto de Vercel. Dominio cuando esté comprado (§3.6); hasta entonces, `.vercel.app`.
 
 ## 7. Qué NO hacer en v1 (fuera de scope explícito)
 
-- Integración de API de envío (MiCorreo, PaqAr, Correo Argentino, Mercado Envíos API) — despacho 100% manual.
+- Auto-import/despacho por API de courier (MiCorreo, PaqAr, Correo Argentino, Mercado Envíos API) — despacho 100% manual. La cotización en vivo con MiCorreo SÍ está en v1 (ADR 0004).
 - Facturación automática o integrada — diferida, ver §2.1.
 - Compartir CUALQUIER recurso con glamify-makeup: ni base Supabase, ni proyecto de hosting, ni storage, ni credenciales. Todo separado a nivel proyecto (§3.1; la cuenta de Vercel/Supabase/GitHub de Lazar sí es la misma, ADR 0005).
 - Heredar el design system rosa de glamify. Blanco/negro/grises, según §8.
