@@ -180,6 +180,16 @@ describe("validateProduct", () => {
     expect(validateProduct(baseProduct({ cost: -1 })).ok).toBe(false);
   });
 
+  it("cost vacío pide cargarlo, no dice que es negativo", () => {
+    const r = validateProduct(baseProduct({ cost: "" }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/Cargá el costo/);
+  });
+
+  it("acepta cost 0", () => {
+    expect(validateProduct(baseProduct({ cost: 0 })).ok).toBe(true);
+  });
+
   it("rechaza compareAtPrice menor o igual a basePrice", () => {
     expect(
       validateProduct(baseProduct({ basePrice: 3000, compareAtPrice: 3000 }))

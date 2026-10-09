@@ -202,7 +202,13 @@ export function validateProduct(
 
   if (typeof input.basePrice !== "number" || !(input.basePrice > 0))
     return { ok: false, error: "El precio debe ser mayor a 0." };
-  if (typeof input.cost !== "number" || input.cost < 0)
+  if (typeof input.cost !== "number")
+    return {
+      ok: false,
+      error:
+        "Cargá el costo (lo que te salió la prenda). Si no lo sabés, poné 0.",
+    };
+  if (input.cost < 0)
     return { ok: false, error: "El costo no puede ser negativo." };
 
   let compareAtPrice: number | null = null;
