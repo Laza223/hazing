@@ -46,7 +46,7 @@ const DELIVERY_OPTIONS: Array<{
   {
     method: "retiro",
     label: "Retiro en Luján — gratis",
-    help: "Coordinamos día y hora por WhatsApp.",
+    help: "Te mandamos la dirección por mail con la confirmación del pago. Coordinamos día y hora por WhatsApp.",
   },
 ];
 

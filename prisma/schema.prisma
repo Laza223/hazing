@@ -449,6 +449,9 @@ model Setting {
   whatsappNumber        String?
   instagramUrl          String?
   tiktokUrl             String?
+  /// Punto de retiro para el método `retiro`. Solo se manda por mail a quien compra con retiro;
+  /// nunca se publica en la web ni va en el código (el repo es público).
+  pickupAddress         String?
   updatedAt             DateTime @updatedAt
 }
 

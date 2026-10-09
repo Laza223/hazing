@@ -75,6 +75,8 @@ export interface ProcessWebhookDeps {
   }) => Promise<boolean>;
   secret: string;
   ownerEmail?: string;
+  /** Punto de retiro de Ajustes; solo se consulta para pedidos con `retiro`. */
+  getPickupAddress?: () => Promise<string | null>;
   now?: Date;
 }
 export interface ProcessWebhookResult {
@@ -90,6 +92,13 @@ export function defaultWebhookDeps(): ProcessWebhookDeps {
     verifySignature: verifyMpSignature,
     secret: process.env.MP_WEBHOOK_SECRET ?? "",
     ownerEmail: process.env.RESEND_OWNER_EMAIL ?? "",
+    getPickupAddress: async () =>
+      (
+        await prisma.setting.findUnique({
+          where: { id: "default" },
+          select: { pickupAddress: true },
+        })
+      )?.pickupAddress ?? null,
   };
 }
 
@@ -349,6 +358,10 @@ export async function processWebhook(
         discountTotal: toNumber(order.discountTotal),
         total: toNumber(order.total),
         shippingMethod: order.shippingMethod,
+        pickupAddress:
+          order.shippingMethod === "retiro" && deps.getPickupAddress
+            ? await deps.getPickupAddress()
+            : null,
         // Defensa: monto realmente acreditado por MP → la alerta a la dueña flaggea si no coincide con el total.
         amountPaid: mpPayment.transaction_amount ?? undefined,
       };

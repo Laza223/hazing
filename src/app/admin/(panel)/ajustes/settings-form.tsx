@@ -17,6 +17,7 @@ interface SettingsFormProps {
     whatsappNumber: string | null;
     instagramUrl: string | null;
     tiktokUrl: string | null;
+    pickupAddress: string | null;
   };
 }
 
@@ -176,6 +177,20 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
               defaultValue={initialSettings.tiktokUrl ?? ""}
               placeholder="https://www.tiktok.com/@hazing"
             />
+          </div>
+          <div className="md:col-span-2">
+            <TextInput
+              id="pickupAddress"
+              name="pickupAddress"
+              label="Dirección de retiro"
+              defaultValue={initialSettings.pickupAddress ?? ""}
+              placeholder="Calle 123, Luján"
+              maxLength={200}
+            />
+            <p className="mt-1.5 text-xs text-ink-3">
+              No se muestra en la web: solo le llega por mail a quien compra con
+              retiro en Luján, después de pagar.
+            </p>
           </div>
         </div>
       </div>

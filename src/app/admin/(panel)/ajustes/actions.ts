@@ -30,6 +30,11 @@ export async function updateSettingsAction(
   const instagramUrl =
     String(formData.get("instagramUrl") ?? "").trim() || null;
   const tiktokUrl = String(formData.get("tiktokUrl") ?? "").trim() || null;
+  const pickupAddress =
+    String(formData.get("pickupAddress") ?? "").trim() || null;
+  if (pickupAddress && pickupAddress.length > 200) {
+    return { ok: false, error: "La dirección de retiro es demasiado larga." };
+  }
 
   if (!storeName) {
     return { ok: false, error: "El nombre de la tienda es obligatorio." };
@@ -96,6 +101,7 @@ export async function updateSettingsAction(
         whatsappNumber,
         instagramUrl,
         tiktokUrl,
+        pickupAddress,
       },
       update: {
         storeName,
@@ -105,6 +111,7 @@ export async function updateSettingsAction(
         whatsappNumber,
         instagramUrl,
         tiktokUrl,
+        pickupAddress,
       },
     });
 

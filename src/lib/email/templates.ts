@@ -26,6 +26,8 @@ export interface OrderEmailData {
   discountTotal: number;
   total: number;
   shippingMethod: string;
+  /** Solo para `retiro`: punto de retiro (de Ajustes). Va únicamente en el mail a la clienta. */
+  pickupAddress?: string | null;
   oversoldLines?: Array<{ name: string }>;
   /** Monto realmente acreditado por MP (para reconciliar contra `total` en la alerta a la dueña). */
   amountPaid?: number;
@@ -44,6 +46,17 @@ const SHIPPING_METHOD_LABEL: Record<string, string> = {
 
 function shippingMethodLabel(method: string): string {
   return escapeHtml(SHIPPING_METHOD_LABEL[method] ?? method);
+}
+
+function pickupHtml(d: OrderEmailData): string {
+  if (d.shippingMethod !== "retiro" || !d.pickupAddress) return "";
+  return `
+    <p>Punto de retiro: <strong>${escapeHtml(d.pickupAddress)}</strong>. Coordinamos día y hora por WhatsApp.</p>`;
+}
+
+function pickupText(d: OrderEmailData): string {
+  if (d.shippingMethod !== "retiro" || !d.pickupAddress) return "";
+  return `\nPunto de retiro: ${d.pickupAddress}. Coordinamos día y hora por WhatsApp.`;
 }
 
 function itemLabel(it: OrderEmailItem): string {
@@ -91,10 +104,10 @@ export function orderConfirmationEmail(d: OrderEmailData): EmailContent {
     <table style="width:100%;border-collapse:collapse">${itemsHtml(d.items)}</table>
     <hr style="border:none;border-top:1px solid #D4D4D4"/>
     <table style="width:100%;border-collapse:collapse">${totalsBlock(d)}</table>
-    <p>Entrega: ${shippingMethodLabel(d.shippingMethod)}.</p>
+    <p>Entrega: ${shippingMethodLabel(d.shippingMethod)}.</p>${pickupHtml(d)}
     <p>Cualquier duda, escribinos por WhatsApp.</p>
   </div>`;
-  const text = `Hazing\n\nHola ${d.contactName}. Recibimos tu pedido ${d.orderNumber}\n\n${itemsText(d.items)}\n\nSubtotal: ${formatARS(d.subtotal)}\nDescuento: ${formatARS(d.discountTotal)}\nEnvío: ${formatARS(d.shippingCost)}\nTotal: ${formatARS(d.total)}\nEntrega: ${SHIPPING_METHOD_LABEL[d.shippingMethod] ?? d.shippingMethod}`;
+  const text = `Hazing\n\nHola ${d.contactName}. Recibimos tu pedido ${d.orderNumber}\n\n${itemsText(d.items)}\n\nSubtotal: ${formatARS(d.subtotal)}\nDescuento: ${formatARS(d.discountTotal)}\nEnvío: ${formatARS(d.shippingCost)}\nTotal: ${formatARS(d.total)}\nEntrega: ${SHIPPING_METHOD_LABEL[d.shippingMethod] ?? d.shippingMethod}${pickupText(d)}`;
   return { subject, html, text };
 }
 

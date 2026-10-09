@@ -29,6 +29,7 @@ export default async function AdminAjustesPage() {
     whatsappNumber: setting?.whatsappNumber ?? null,
     instagramUrl: setting?.instagramUrl ?? null,
     tiktokUrl: setting?.tiktokUrl ?? null,
+    pickupAddress: setting?.pickupAddress ?? null,
   };
 
   return (
