@@ -76,6 +76,7 @@ function makeDeps(over: Partial<CreateCheckoutDeps> = {}): {
       cost: 2500,
       zoneId: "z-amba",
       freeShipping: false,
+      source: "zone" as const,
     })),
     appUrl: "https://app.test",
     isSandboxToken: true,
@@ -226,13 +227,15 @@ describe("createCheckout", () => {
     expect(items).toHaveLength(1);
   });
 
-  it("pasa cp/province/subtotal a quoteShipping, sin method (envío 100% manual, ver src/lib/shipping/quote.ts)", async () => {
+  it("pasa método, cp, province, subtotal y unidades a quoteShipping (el costo se recalcula en server)", async () => {
     const { deps } = makeDeps();
     await createCheckout(baseInput, deps);
     expect(deps.quoteShipping).toHaveBeenCalledWith({
+      method: "domicilio",
       cp: "1414",
       province: "CABA",
       subtotal: 6400,
+      units: 2,
     });
   });
 });

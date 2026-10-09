@@ -10,6 +10,9 @@ import {
 } from "@/lib/admin/shipping-zone";
 import type { ActionResult } from "@/lib/forms/action-result";
 
+/** Tope de los montos de Ajustes: muy por debajo del máximo de Decimal(12,2). */
+const MAX_AMOUNT = 10_000_000;
+
 export async function updateSettingsAction(
   formData: FormData,
 ): Promise<ActionResult> {
@@ -36,7 +39,7 @@ export async function updateSettingsAction(
   let freeShippingThreshold: number | null = null;
   if (freeShippingThresholdRaw !== "") {
     const n = Number(freeShippingThresholdRaw);
-    if (Number.isNaN(n) || n < 0) {
+    if (Number.isNaN(n) || n < 0 || n > MAX_AMOUNT) {
       return {
         ok: false,
         error: "El monto de envío gratis debe ser un número positivo.",
@@ -50,13 +53,27 @@ export async function updateSettingsAction(
   let shippingPrice: number | null = null;
   if (shippingPriceRaw !== "") {
     const n = Number(shippingPriceRaw);
-    if (!Number.isFinite(n) || n < 0) {
+    if (!Number.isFinite(n) || n < 0 || n > MAX_AMOUNT) {
       return {
         ok: false,
         error: "El costo de envío debe ser un número positivo.",
       };
     }
     shippingPrice = n;
+  }
+
+  // Recargo fijo sobre la cotización de Correo. Vacío = 0.
+  const surchargeRaw = String(formData.get("shippingSurcharge") ?? "").trim();
+  const shippingSurcharge = surchargeRaw === "" ? 0 : Number(surchargeRaw);
+  if (
+    !Number.isFinite(shippingSurcharge) ||
+    shippingSurcharge < 0 ||
+    shippingSurcharge > MAX_AMOUNT
+  ) {
+    return {
+      ok: false,
+      error: "El recargo sobre el envío debe ser un número positivo.",
+    };
   }
 
   if (!originPostalCode || originPostalCode.length < 4) {
@@ -74,6 +91,7 @@ export async function updateSettingsAction(
         id: "default",
         storeName,
         freeShippingThreshold,
+        shippingSurcharge,
         originPostalCode,
         whatsappNumber,
         instagramUrl,
@@ -82,6 +100,7 @@ export async function updateSettingsAction(
       update: {
         storeName,
         freeShippingThreshold,
+        shippingSurcharge,
         originPostalCode,
         whatsappNumber,
         instagramUrl,

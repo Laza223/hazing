@@ -36,6 +36,16 @@ export interface EmailContent {
   text: string;
 }
 
+const SHIPPING_METHOD_LABEL: Record<string, string> = {
+  domicilio: "a domicilio",
+  sucursal: "retiro en sucursal (te avisamos cuál al despacharlo)",
+  retiro: "retiro en Luján (coordinamos por WhatsApp)",
+};
+
+function shippingMethodLabel(method: string): string {
+  return escapeHtml(SHIPPING_METHOD_LABEL[method] ?? method);
+}
+
 function itemLabel(it: OrderEmailItem): string {
   return it.variantName ? `${it.name} — ${it.variantName}` : it.name;
 }
@@ -81,10 +91,10 @@ export function orderConfirmationEmail(d: OrderEmailData): EmailContent {
     <table style="width:100%;border-collapse:collapse">${itemsHtml(d.items)}</table>
     <hr style="border:none;border-top:1px solid #D4D4D4"/>
     <table style="width:100%;border-collapse:collapse">${totalsBlock(d)}</table>
-    <p>Envío: ${d.shippingMethod}.</p>
+    <p>Entrega: ${shippingMethodLabel(d.shippingMethod)}.</p>
     <p>Cualquier duda, escribinos por WhatsApp.</p>
   </div>`;
-  const text = `Hazing\n\nHola ${d.contactName}. Recibimos tu pedido ${d.orderNumber}\n\n${itemsText(d.items)}\n\nSubtotal: ${formatARS(d.subtotal)}\nDescuento: ${formatARS(d.discountTotal)}\nEnvío: ${formatARS(d.shippingCost)}\nTotal: ${formatARS(d.total)}\nEnvío: ${d.shippingMethod}`;
+  const text = `Hazing\n\nHola ${d.contactName}. Recibimos tu pedido ${d.orderNumber}\n\n${itemsText(d.items)}\n\nSubtotal: ${formatARS(d.subtotal)}\nDescuento: ${formatARS(d.discountTotal)}\nEnvío: ${formatARS(d.shippingCost)}\nTotal: ${formatARS(d.total)}\nEntrega: ${SHIPPING_METHOD_LABEL[d.shippingMethod] ?? d.shippingMethod}`;
   return { subject, html, text };
 }
 
@@ -116,7 +126,7 @@ export function newOrderAlertEmail(d: OrderEmailData): EmailContent {
     <p>Cliente: ${escapeHtml(d.contactName)} — ${escapeHtml(d.contactEmail)}</p>
     <table style="width:100%;border-collapse:collapse">${itemsHtml(d.items)}</table>
     <table style="width:100%;border-collapse:collapse">${totalsBlock(d)}</table>
-    <p>Envío: ${d.shippingMethod}.</p>
+    <p>Entrega: ${shippingMethodLabel(d.shippingMethod)}.</p>
   </div>`;
   const text = `Nuevo pedido ${d.orderNumber}\nCliente: ${d.contactName} (${d.contactEmail})\nTotal: ${formatARS(d.total)}${oversell ? `\nOVERSELL: ${d.oversoldLines!.map((l) => l.name).join(", ")}` : ""}${amountMismatch ? `\nMONTO: acreditado ${formatARS(d.amountPaid!)} ≠ total ${formatARS(d.total)}` : ""}`;
   return { subject, html, text };
@@ -193,5 +203,33 @@ export function retractionReceiptEmail(d: RetractionReceiptData): EmailContent {
     <p>Te vamos a contactar para coordinar la devolución del producto y el reintegro del importe. Guardá este correo como comprobante.</p>
   </div>`;
   const text = `Recibimos tu solicitud de arrepentimiento.\nConstancia: ${d.ticket}\nFecha: ${d.date}\nTe contactaremos para coordinar la devolución y el reintegro. Guardá este correo como comprobante.`;
+  return { subject, html, text };
+}
+
+export interface ShipmentDispatchedEmailData {
+  orderNumber: string;
+  contactName: string;
+  carrier: string;
+  trackingNumber: string;
+  /** URL https de seguimiento (opcional). */
+  trackingUrl?: string | null;
+}
+
+/** Aviso a la clienta: su pedido fue despachado, con empresa, código y link de seguimiento. */
+export function shipmentDispatchedEmail(
+  d: ShipmentDispatchedEmailData,
+): EmailContent {
+  const subject = `Tu pedido ${d.orderNumber} está en camino — Hazing`;
+  const link = d.trackingUrl
+    ? `<p><a href="${escapeHtml(d.trackingUrl)}" style="color:${INK}">Seguir mi envío</a></p>`
+    : "";
+  const html = `<div style="font-family:Georgia,serif;color:${INK}">
+    <h1 style="font-weight:400;text-transform:uppercase;letter-spacing:0.08em">Hazing</h1>
+    <p>Hola ${escapeHtml(d.contactName)}. Despachamos tu pedido <strong>${escapeHtml(d.orderNumber)}</strong>.</p>
+    <p>Empresa: ${escapeHtml(d.carrier)}<br/>Código de seguimiento: <strong>${escapeHtml(d.trackingNumber)}</strong></p>
+    ${link}
+    <p>Cualquier duda, escribinos por WhatsApp.</p>
+  </div>`;
+  const text = `Hazing\n\nHola ${d.contactName}. Despachamos tu pedido ${d.orderNumber}.\nEmpresa: ${d.carrier}\nCódigo de seguimiento: ${d.trackingNumber}${d.trackingUrl ? `\nSeguir mi envío: ${d.trackingUrl}` : ""}`;
   return { subject, html, text };
 }

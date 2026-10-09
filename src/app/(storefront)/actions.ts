@@ -24,17 +24,17 @@ import { prisma } from "@/lib/prisma";
 import { getCustomer } from "@/lib/customer/auth";
 import { quoteShipping } from "@/lib/shipping/quote";
 import { enforceRateLimit } from "@/lib/rate-limit";
-import {
-  getShippingZonesForQuote,
-  getFreeShippingThreshold,
-} from "@/lib/orders/checkout-data";
+import { shippingQuoteDeps } from "@/lib/orders/checkout-data";
 import {
   createCheckout,
   defaultCheckoutDeps,
 } from "@/lib/orders/checkout-service";
 import {
   validateCheckoutForm,
+  isShippingMethod,
+  SHIPPING_METHODS,
   type CheckoutFormInput,
+  type CheckoutShippingMethod,
 } from "@/lib/orders/checkout-validation";
 
 function appUrl(): string {
@@ -220,40 +220,63 @@ export async function removeCouponAction(): Promise<ActionResult> {
   return { ok: true };
 }
 
+export interface ShippingOption {
+  cost: number;
+  free: boolean;
+}
 export interface QuoteShippingResult extends ActionResult {
-  cost?: number;
-  free?: boolean;
+  /** Una opción por método; `null` = sin cotización (el método no se puede pagar). */
+  options?: Record<CheckoutShippingMethod, ShippingOption | null>;
 }
 
-/** Cotiza el envío a domicilio (única entrega disponible en la Fase 8 — ver
- *  docs/spec/08-checkout.md §3.2) por `ShippingZone`. Cambiar el CP invalida
- *  la cotización anterior: el form vuelve a llamar a esta action. */
+/** Cotiza los 3 métodos de entrega de una vez. Cambiar el CP invalida la cotización
+ *  anterior: el form vuelve a llamar a esta action. El costo real se recalcula en
+ *  `createCheckoutAction`; esto es informativo. */
 export async function quoteShippingAction(input: {
   cp: string;
   province?: string | null;
 }): Promise<QuoteShippingResult> {
   if (!/^\d{4}$/.test(input.cp))
     return { ok: false, error: "Código postal inválido (4 dígitos)." };
+  const limited = await enforceRateLimit("quote");
+  if (limited) return { ok: false, error: limited.error };
   const { lines } = await loadCurrentCart();
   if (lines.length === 0) return { ok: false, error: "El carrito está vacío." };
   const subtotal = cartSubtotal(lines);
-  try {
-    const quote = await quoteShipping(
-      { cp: input.cp, province: input.province ?? null, subtotal },
-      {
-        getZones: getShippingZonesForQuote,
-        getThreshold: getFreeShippingThreshold,
-      },
-    );
-    return { ok: true, cost: quote.cost, free: quote.freeShipping };
-  } catch {
-    // Sin zona configurada para ese CP — docs/spec/08-checkout.md §3, punto 3.
+  const units = lines.reduce((n, l) => n + l.qty, 0);
+  const entries = await Promise.all(
+    SHIPPING_METHODS.map(async (method) => {
+      try {
+        const q = await quoteShipping(
+          {
+            method,
+            cp: input.cp,
+            province: input.province ?? null,
+            subtotal,
+            units,
+          },
+          shippingQuoteDeps,
+        );
+        return [method, { cost: q.cost, free: q.cost === 0 }] as const;
+      } catch {
+        return [method, null] as const;
+      }
+    }),
+  );
+  const options = Object.fromEntries(entries) as Record<
+    CheckoutShippingMethod,
+    ShippingOption | null
+  >;
+  if (!options.domicilio && !options.sucursal) {
+    // Sin cotización ni respaldo — docs/spec/08-checkout.md §3, punto 3. El retiro sigue disponible.
     return {
-      ok: false,
+      ok: true,
+      options,
       error:
         "Todavía no tenemos costo de envío para ese código postal. Escribinos y lo resolvemos.",
     };
   }
+  return { ok: true, options };
 }
 
 export interface CheckoutResult extends ActionResult {
@@ -267,6 +290,7 @@ export async function createCheckoutAction(input: {
   contactName: string;
   contactEmail: string;
   contactPhone: string;
+  shippingMethod: CheckoutShippingMethod;
   address: {
     cp: string;
     province: string;
@@ -280,7 +304,10 @@ export async function createCheckoutAction(input: {
 }): Promise<CheckoutResult> {
   const limited = await enforceRateLimit("checkout");
   if (limited) return limited;
+  if (!isShippingMethod(input.shippingMethod))
+    return { ok: false, error: "Elegí una forma de entrega." };
   const formInput: CheckoutFormInput = {
+    shippingMethod: input.shippingMethod,
     contactName: input.contactName,
     contactEmail: input.contactEmail,
     contactPhone: input.contactPhone,
@@ -315,8 +342,11 @@ export async function createCheckoutAction(input: {
         contactName: input.contactName,
         contactEmail: input.contactEmail,
         contactPhone: input.contactPhone,
-        shippingMethod: "domicilio",
-        address: input.address,
+        shippingMethod: input.shippingMethod,
+        address:
+          input.shippingMethod === "retiro"
+            ? { cp: "", province: null }
+            : input.address,
         lines,
         couponCode,
         cartId,

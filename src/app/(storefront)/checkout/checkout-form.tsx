@@ -22,13 +22,33 @@ import { AR_PROVINCES } from "@/lib/ar-provinces";
 import {
   validateCheckoutFormFields,
   CHECKOUT_FORM_FIELD_ORDER,
+  type CheckoutShippingMethod,
   type CheckoutFormField,
   type CheckoutFormErrors,
 } from "@/lib/orders/checkout-validation";
 import {
   quoteShippingAction,
   createCheckoutAction,
+  type QuoteShippingResult,
 } from "@/app/(storefront)/actions";
+
+const DELIVERY_OPTIONS: Array<{
+  method: CheckoutShippingMethod;
+  label: string;
+  help?: string;
+}> = [
+  { method: "domicilio", label: "Envío a domicilio" },
+  {
+    method: "sucursal",
+    label: "Retiro en sucursal",
+    help: "Te avisamos por mail en qué sucursal retirarlo cuando lo despachemos.",
+  },
+  {
+    method: "retiro",
+    label: "Retiro en Luján — gratis",
+    help: "Coordinamos día y hora por WhatsApp.",
+  },
+];
 
 interface ItemView {
   id: string;
@@ -85,10 +105,10 @@ export function CheckoutForm({
   // Sin ShippingZone para el CP: se ofrece el link a /contacto (08-checkout.md §3.3).
   const [noZone, setNoZone] = useState(false);
 
-  const [shipping, setShipping] = useState<{
-    cost: number;
-    free: boolean;
-  } | null>(null);
+  const [method, setMethod] = useState<CheckoutShippingMethod>("domicilio");
+  const [options, setOptions] = useState<QuoteShippingResult["options"] | null>(
+    null,
+  );
   const [quoting, startQuote] = useTransition();
   const [submitting, startSubmit] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -122,6 +142,10 @@ export function CheckoutForm({
     acceptedTerms: termsRef,
   };
 
+  const isPickup = method === "retiro";
+  const shipping = isPickup
+    ? { cost: 0, free: true }
+    : (options?.[method] ?? null);
   const shippingCost = couponFreeShipping
     ? 0
     : shipping?.free
@@ -133,16 +157,17 @@ export function CheckoutForm({
 
   const quote = () => {
     if (!/^\d{4}$/.test(cp)) {
-      setShipping(null);
+      setOptions(null);
       return;
     }
     startQuote(async () => {
       const r = await quoteShippingAction({ cp, province });
-      if (r.ok) {
-        setShipping({ cost: r.cost ?? 0, free: Boolean(r.free) });
-        setNoZone(false);
+      if (r.ok && r.options) {
+        setOptions(r.options);
+        setNoZone(Boolean(r.error));
+        setError(r.error ?? null);
       } else {
-        setShipping(null);
+        setOptions(null);
         setError(r.error ?? null);
         setNoZone(true);
       }
@@ -152,6 +177,7 @@ export function CheckoutForm({
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const errors = validateCheckoutFormFields({
+      shippingMethod: method,
       contactName: name,
       contactEmail: email,
       contactPhone: phone,
@@ -175,7 +201,9 @@ export function CheckoutForm({
     }
     setFieldErrors({});
     if (shippingCost == null) {
-      setError("Calculá el envío con tu código postal.");
+      setError(
+        "Calculá el envío con tu código postal o elegí retirar en Luján.",
+      );
       return;
     }
     setError(null);
@@ -184,6 +212,7 @@ export function CheckoutForm({
         contactName: name,
         contactEmail: email,
         contactPhone: phone,
+        shippingMethod: method,
         address: { cp, province, street, number, floorApt, city, notes },
         acceptedTerms,
       });
@@ -233,161 +262,205 @@ export function CheckoutForm({
         </fieldset>
 
         <fieldset className="space-y-3">
-          <legend className="font-display text-lg text-ink">
-            Entrega a domicilio
-          </legend>
-          <div className="grid grid-cols-2 gap-3">
+          <legend className="font-display text-lg text-ink">Entrega</legend>
+          {DELIVERY_OPTIONS.map((o) => {
+            const q = o.method === "retiro" ? { cost: 0 } : options?.[o.method];
+            const price =
+              o.method === "retiro"
+                ? null
+                : q
+                  ? q.cost === 0
+                    ? "Gratis"
+                    : formatPrice(q.cost)
+                  : options
+                    ? "No disponible"
+                    : "A calcular";
+            return (
+              <label
+                key={o.method}
+                className="flex cursor-pointer items-start gap-3 rounded-control border border-line p-3 has-[:checked]:border-ink"
+              >
+                <input
+                  type="radio"
+                  name="checkout-delivery"
+                  value={o.method}
+                  checked={method === o.method}
+                  onChange={() => setMethod(o.method)}
+                  aria-describedby={
+                    o.help ? `checkout-delivery-${o.method}-help` : undefined
+                  }
+                  className="mt-0.5 size-4 shrink-0 accent-ink outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                />
+                <span className="flex-1 text-sm text-ink">
+                  {o.label}
+                  {o.help && (
+                    <span
+                      id={`checkout-delivery-${o.method}-help`}
+                      className="block text-xs text-ink-2"
+                    >
+                      {o.help}
+                    </span>
+                  )}
+                </span>
+                {price && (
+                  <span className="text-sm tabular-nums text-ink">{price}</span>
+                )}
+              </label>
+            );
+          })}
+        </fieldset>
+
+        {!isPickup && (
+          <fieldset className="space-y-3">
+            <legend className="font-display text-lg text-ink">
+              Dirección de entrega
+            </legend>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor="checkout-province"
+                  className="tracking-caps-sm text-xs font-medium uppercase text-ink-2"
+                >
+                  Provincia
+                </label>
+                <Select
+                  value={province}
+                  onValueChange={(v) => {
+                    setProvince(v);
+                    setOptions(null);
+                  }}
+                >
+                  <SelectTrigger
+                    ref={provinceRef}
+                    id="checkout-province"
+                    aria-label="Provincia"
+                    aria-invalid={fieldErrors.province ? "true" : undefined}
+                    aria-describedby={
+                      fieldErrors.province
+                        ? "checkout-province-error"
+                        : undefined
+                    }
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {AR_PROVINCES.map((p) => (
+                      <SelectItem key={p} value={p}>
+                        {p}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {fieldErrors.province && (
+                  <p
+                    id="checkout-province-error"
+                    className="flex items-center gap-1 text-xs text-ink"
+                  >
+                    <AlertCircle className="size-3.5 shrink-0" aria-hidden />
+                    {fieldErrors.province}
+                  </p>
+                )}
+              </div>
+              <TextInput
+                ref={cpRef}
+                id="checkout-cp"
+                label="Código postal"
+                value={cp}
+                onChange={(e) => {
+                  setCp(e.target.value.replace(/\D/g, "").slice(0, 4));
+                  setOptions(null);
+                }}
+                inputMode="numeric"
+                error={fieldErrors.cp}
+              />
+              <TextInput
+                ref={cityRef}
+                id="checkout-city"
+                label="Localidad"
+                value={city}
+                onChange={(e) => {
+                  setCity(e.target.value);
+                  setOptions(null);
+                }}
+                autoComplete="address-level2"
+                error={fieldErrors.city}
+              />
+              <div className="flex items-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={quote}
+                  disabled={quoting || cp.length !== 4}
+                  className="min-h-11 w-full"
+                >
+                  {quoting ? (
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                  ) : (
+                    "Calcular envío"
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <TextInput
+                ref={streetRef}
+                id="checkout-street"
+                label="Calle"
+                value={street}
+                onChange={(e) => setStreet(e.target.value)}
+                autoComplete="address-line1"
+                error={fieldErrors.street}
+              />
+              <TextInput
+                ref={numberRef}
+                id="checkout-number"
+                label="Número"
+                value={number}
+                onChange={(e) => setNumber(e.target.value)}
+                error={fieldErrors.number}
+              />
+              <TextInput
+                ref={floorAptRef}
+                id="checkout-floor"
+                label="Piso / depto (opcional)"
+                value={floorApt}
+                onChange={(e) => setFloorApt(e.target.value)}
+                error={fieldErrors.floorApt}
+              />
+            </div>
+
             <div className="flex flex-col gap-1">
               <label
-                htmlFor="checkout-province"
+                htmlFor="checkout-notes"
                 className="tracking-caps-sm text-xs font-medium uppercase text-ink-2"
               >
-                Provincia
+                Notas para la entrega (opcional)
               </label>
-              <Select
-                value={province}
-                onValueChange={(v) => {
-                  setProvince(v);
-                  setShipping(null);
-                }}
-              >
-                <SelectTrigger
-                  ref={provinceRef}
-                  id="checkout-province"
-                  aria-label="Provincia"
-                  aria-invalid={fieldErrors.province ? "true" : undefined}
-                  aria-describedby={
-                    fieldErrors.province ? "checkout-province-error" : undefined
-                  }
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {AR_PROVINCES.map((p) => (
-                    <SelectItem key={p} value={p}>
-                      {p}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {fieldErrors.province && (
+              <Textarea
+                ref={notesRef}
+                id="checkout-notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={2}
+                aria-invalid={fieldErrors.notes ? "true" : undefined}
+                aria-describedby={
+                  fieldErrors.notes ? "checkout-notes-error" : undefined
+                }
+              />
+              {fieldErrors.notes && (
                 <p
-                  id="checkout-province-error"
+                  id="checkout-notes-error"
                   className="flex items-center gap-1 text-xs text-ink"
                 >
                   <AlertCircle className="size-3.5 shrink-0" aria-hidden />
-                  {fieldErrors.province}
+                  {fieldErrors.notes}
                 </p>
               )}
             </div>
-            <TextInput
-              ref={cpRef}
-              id="checkout-cp"
-              label="Código postal"
-              value={cp}
-              onChange={(e) => {
-                setCp(e.target.value.replace(/\D/g, "").slice(0, 4));
-                setShipping(null);
-              }}
-              inputMode="numeric"
-              error={fieldErrors.cp}
-            />
-            <TextInput
-              ref={cityRef}
-              id="checkout-city"
-              label="Localidad"
-              value={city}
-              onChange={(e) => {
-                setCity(e.target.value);
-                setShipping(null);
-              }}
-              autoComplete="address-level2"
-              error={fieldErrors.city}
-            />
-            <div className="flex items-end">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={quote}
-                disabled={quoting || cp.length !== 4}
-                className="min-h-11 w-full"
-              >
-                {quoting ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
-                ) : (
-                  "Calcular envío"
-                )}
-              </Button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <TextInput
-              ref={streetRef}
-              id="checkout-street"
-              label="Calle"
-              value={street}
-              onChange={(e) => setStreet(e.target.value)}
-              autoComplete="address-line1"
-              error={fieldErrors.street}
-            />
-            <TextInput
-              ref={numberRef}
-              id="checkout-number"
-              label="Número"
-              value={number}
-              onChange={(e) => setNumber(e.target.value)}
-              error={fieldErrors.number}
-            />
-            <TextInput
-              ref={floorAptRef}
-              id="checkout-floor"
-              label="Piso / depto (opcional)"
-              value={floorApt}
-              onChange={(e) => setFloorApt(e.target.value)}
-              error={fieldErrors.floorApt}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="checkout-notes"
-              className="tracking-caps-sm text-xs font-medium uppercase text-ink-2"
-            >
-              Notas para la entrega (opcional)
-            </label>
-            <Textarea
-              ref={notesRef}
-              id="checkout-notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              aria-invalid={fieldErrors.notes ? "true" : undefined}
-              aria-describedby={
-                fieldErrors.notes ? "checkout-notes-error" : undefined
-              }
-            />
-            {fieldErrors.notes && (
-              <p
-                id="checkout-notes-error"
-                className="flex items-center gap-1 text-xs text-ink"
-              >
-                <AlertCircle className="size-3.5 shrink-0" aria-hidden />
-                {fieldErrors.notes}
-              </p>
-            )}
-          </div>
-
-          {shipping && (
-            <p className="text-sm text-ink-2">
-              Envío:{" "}
-              <span className="text-ink">
-                {shipping.free ? "Gratis" : formatPrice(shipping.cost)}
-              </span>
-            </p>
-          )}
-        </fieldset>
+          </fieldset>
+        )}
       </div>
 
       <aside className="space-y-6 lg:col-span-5">

@@ -16,6 +16,8 @@ export const RATE_LIMITS = {
   adminLogin: { max: 10, windowMs: 15 * 60 * 1000 },
   checkout: { max: 20, windowMs: 60 * 60 * 1000 },
   coupon: { max: 30, windowMs: 15 * 60 * 1000 },
+  // Cada cotización pega a la API de MiCorreo con la cuenta de la tienda.
+  quote: { max: 40, windowMs: 15 * 60 * 1000 },
 } as const;
 
 export type RateLimitAction = keyof typeof RATE_LIMITS;

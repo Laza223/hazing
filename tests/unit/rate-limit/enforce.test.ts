@@ -103,6 +103,7 @@ describe("enforceRateLimit", () => {
       adminLogin: { max: 10, windowMs: min15 },
       checkout: { max: 20, windowMs: h1 },
       coupon: { max: 30, windowMs: min15 },
+      quote: { max: 40, windowMs: min15 },
     });
   });
 });

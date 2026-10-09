@@ -9,10 +9,7 @@ import {
   quoteShipping as realQuoteShipping,
   type ShippingQuote,
 } from "@/lib/shipping/quote";
-import {
-  getShippingZonesForQuote,
-  getFreeShippingThreshold,
-} from "@/lib/orders/checkout-data";
+import { shippingQuoteDeps } from "@/lib/orders/checkout-data";
 import type { CartLine } from "@/lib/cart/types";
 
 export interface CheckoutLineInput {
@@ -35,7 +32,7 @@ export interface CreateCheckoutInput {
   contactName: string;
   contactEmail: string;
   contactPhone: string;
-  shippingMethod: "domicilio" | "sucursal";
+  shippingMethod: "domicilio" | "sucursal" | "retiro";
   address: CheckoutAddress;
   lines: CheckoutLineInput[];
   couponCode?: string | null;
@@ -109,11 +106,7 @@ export function defaultCheckoutDeps(appUrl: string): CreateCheckoutDeps {
     db: prisma as unknown as CheckoutDb,
     nextOrderSeq: defaultNextOrderSeq,
     createPreference: realCreatePreference,
-    quoteShipping: (input) =>
-      realQuoteShipping(input, {
-        getZones: getShippingZonesForQuote,
-        getThreshold: getFreeShippingThreshold,
-      }),
+    quoteShipping: (input) => realQuoteShipping(input, shippingQuoteDeps),
     appUrl,
     isSandboxToken: process.env.MP_ACCESS_TOKEN?.startsWith("TEST-") ?? false,
   };
@@ -159,11 +152,13 @@ export async function createCheckout(
     }
   }
 
-  // --- Envío (ShippingZone, sin API — ver src/lib/shipping/quote.ts) ---
+  // --- Envío: SIEMPRE recalculado en server con el método elegido (ver src/lib/shipping/quote.ts) ---
   const quote = await deps.quoteShipping({
+    method: input.shippingMethod,
     cp: input.address.cp,
     province: input.address.province ?? null,
     subtotal,
+    units: cartLines.reduce((n, l) => n + l.qty, 0),
   });
   const shippingCost = freeShippingByCoupon ? 0 : quote.cost;
   const total = round2(subtotal - discount + shippingCost);

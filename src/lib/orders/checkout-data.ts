@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/catalog/pricing";
-import type { Zone } from "@/lib/shipping/quote";
+import type { QuoteShippingDeps, Zone } from "@/lib/shipping/quote";
+import { quoteMicorreo, orderWeightGr } from "@/lib/shipping/micorreo";
 
 export async function getShippingZonesForQuote(): Promise<Zone[]> {
   const zones = await prisma.shippingZone.findMany({
@@ -26,3 +27,20 @@ export async function getFreeShippingThreshold(): Promise<number | null> {
     ? toNumber(setting.freeShippingThreshold)
     : null;
 }
+
+/** Recargo default si la tabla Setting todavía no tiene fila (ver schema.prisma). */
+const DEFAULT_SURCHARGE = 2000;
+
+export async function getShippingSurcharge(): Promise<number> {
+  const setting = await prisma.setting.findUnique({ where: { id: "default" } });
+  return setting ? toNumber(setting.shippingSurcharge) : DEFAULT_SURCHARGE;
+}
+
+/** Dependencias reales del orquestador de envío (Correo en vivo + Setting + zonas). */
+export const shippingQuoteDeps: QuoteShippingDeps = {
+  getZones: getShippingZonesForQuote,
+  getThreshold: getFreeShippingThreshold,
+  getSurcharge: getShippingSurcharge,
+  liveQuote: (input) => quoteMicorreo(input),
+  weightGr: orderWeightGr,
+};

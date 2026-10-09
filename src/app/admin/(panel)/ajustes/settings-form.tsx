@@ -12,6 +12,7 @@ interface SettingsFormProps {
     storeName: string;
     freeShippingThreshold: number | null;
     shippingPrice: number | null;
+    shippingSurcharge: number;
     originPostalCode: string;
     whatsappNumber: string | null;
     instagramUrl: string | null;
@@ -86,7 +87,7 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
               label="Monto mínimo para envío gratis (ARS)"
               type="number"
               min="0"
-              step="500"
+              step="0.01"
               defaultValue={initialSettings.freeShippingThreshold ?? ""}
               placeholder="Vacío = sin envío gratis"
             />
@@ -98,16 +99,33 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
             <TextInput
               id="shippingPrice"
               name="shippingPrice"
-              label="Costo de envío a todo el país (ARS)"
+              label="Precio de respaldo del envío (ARS)"
               type="number"
               min="0"
-              step="100"
+              step="0.01"
               defaultValue={initialSettings.shippingPrice ?? ""}
               placeholder="Ej. 6500"
             />
             <p className="text-[11px] text-ink-4">
-              Un solo precio para cualquier código postal. Si lo dejás vacío, la
-              tienda no puede cobrar envíos y las clientas no pueden pagar.
+              Precio de respaldo: se usa solo si la cotización de Correo
+              Argentino no responde. Si lo dejás vacío y Correo no responde, las
+              clientas no pueden pagar el envío.
+            </p>
+          </div>
+          <div className="flex flex-col gap-1">
+            <TextInput
+              id="shippingSurcharge"
+              name="shippingSurcharge"
+              label="Recargo sobre el envío cotizado (ARS)"
+              type="number"
+              min="0"
+              step="0.01"
+              defaultValue={initialSettings.shippingSurcharge}
+              placeholder="Ej. 2000"
+            />
+            <p className="text-[11px] text-ink-4">
+              Se suma a lo que cotiza Correo Argentino en vivo. No aplica al
+              retiro en Luján ni al envío gratis.
             </p>
           </div>
           <TextInput

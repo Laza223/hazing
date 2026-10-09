@@ -50,6 +50,7 @@ vi.mock("@/lib/orders/checkout-service", () => ({
 vi.mock("@/lib/orders/checkout-data", () => ({
   getShippingZonesForQuote: vi.fn(),
   getFreeShippingThreshold: vi.fn(),
+  shippingQuoteDeps: {},
 }));
 vi.mock("@/lib/http/base-url", () => ({
   getAuthBaseUrl: vi.fn().mockResolvedValue("http://localhost"),
@@ -94,6 +95,7 @@ const emptyCheckout = {
   contactName: "",
   contactEmail: "",
   contactPhone: "",
+  shippingMethod: "domicilio" as const,
   address: { cp: "", province: "", street: "", number: "", city: "" },
   acceptedTerms: false,
 };
@@ -153,6 +155,13 @@ describe("cuando el limite bloquea: devuelve el error y no toca Supabase ni DB",
   it("applyCouponAction (coupon)", async () => {
     expect(await store.applyCouponAction("PROMO")).toEqual(LIMITED);
     expect(m.enforceRateLimit).toHaveBeenCalledWith("coupon");
+    expectNoDbNoSupabase();
+  });
+
+  it("quoteShippingAction (quote): no cotiza contra MiCorreo", async () => {
+    expect(await store.quoteShippingAction({ cp: "1900" })).toEqual(LIMITED);
+    expect(m.enforceRateLimit).toHaveBeenCalledWith("quote");
+    expect(m.loadCurrentCart).not.toHaveBeenCalled();
     expectNoDbNoSupabase();
   });
 });

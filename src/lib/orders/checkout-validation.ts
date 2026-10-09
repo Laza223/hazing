@@ -4,10 +4,18 @@ import { AR_PROVINCES } from "@/lib/ar-provinces";
  * Validación del formulario de checkout. Pura y compartida entre cliente
  * (feedback inmediato, errores por campo para a11y) y server
  * (`createCheckoutAction`, fuente de verdad — nunca se confía en lo que mandó
- * el cliente). Solo envío a domicilio en la Fase 8 (ver
- * docs/spec/08-checkout.md §3.2).
+ * el cliente). Con retiro en Luján la dirección no se pide (el contacto sí).
  */
+export const SHIPPING_METHODS = ["domicilio", "sucursal", "retiro"] as const;
+export type CheckoutShippingMethod = (typeof SHIPPING_METHODS)[number];
+
+export function isShippingMethod(v: unknown): v is CheckoutShippingMethod {
+  return SHIPPING_METHODS.includes(v as CheckoutShippingMethod);
+}
+
 export interface CheckoutFormInput {
+  /** Default "domicilio". */
+  shippingMethod?: CheckoutShippingMethod;
   contactName: string;
   contactEmail: string;
   contactPhone: string;
@@ -71,22 +79,25 @@ export function validateCheckoutFormFields(
   else if (input.contactPhone.length > MAX_LENGTHS.contactPhone)
     errors.contactPhone = "El teléfono es demasiado largo.";
 
-  if (!AR_PROVINCES.includes(input.province as (typeof AR_PROVINCES)[number]))
-    errors.province = "Seleccioná una provincia válida.";
+  if (input.shippingMethod !== "retiro") {
+    if (!AR_PROVINCES.includes(input.province as (typeof AR_PROVINCES)[number]))
+      errors.province = "Seleccioná una provincia válida.";
 
-  if (!CP_RE.test(input.cp)) errors.cp = "Código postal inválido (4 dígitos).";
+    if (!CP_RE.test(input.cp))
+      errors.cp = "Código postal inválido (4 dígitos).";
 
-  if (!input.city.trim()) errors.city = "Ingresá tu localidad.";
-  else if (input.city.length > MAX_LENGTHS.city)
-    errors.city = "La localidad es demasiado larga.";
+    if (!input.city.trim()) errors.city = "Ingresá tu localidad.";
+    else if (input.city.length > MAX_LENGTHS.city)
+      errors.city = "La localidad es demasiado larga.";
 
-  if (!input.street.trim()) errors.street = "Ingresá la calle.";
-  else if (input.street.length > MAX_LENGTHS.street)
-    errors.street = "La calle es demasiado larga.";
+    if (!input.street.trim()) errors.street = "Ingresá la calle.";
+    else if (input.street.length > MAX_LENGTHS.street)
+      errors.street = "La calle es demasiado larga.";
 
-  if (!input.number.trim()) errors.number = "Ingresá el número.";
-  else if (input.number.length > MAX_LENGTHS.number)
-    errors.number = "El número es demasiado largo.";
+    if (!input.number.trim()) errors.number = "Ingresá el número.";
+    else if (input.number.length > MAX_LENGTHS.number)
+      errors.number = "El número es demasiado largo.";
+  }
 
   if (input.floorApt && input.floorApt.length > MAX_LENGTHS.floorApt)
     errors.floorApt = "El piso/depto es demasiado largo.";

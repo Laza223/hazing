@@ -1,24 +1,26 @@
 # 09 — Envíos (Fase 9)
 
-**Estado: PROVISORIO — pendiente de hacerse bien en una sesión dedicada** (decisión de Lazar, 2026-09-29). Lo que hay hoy alcanza para que el checkout cotice y se pueda vender; no es el diseño final del ADR [0004](../decisions/0004-cotizacion-de-envio-en-vivo.md).
+**Estado:** implementada (2026-10-08) según el ADR [0007](../decisions/0007-envio-cotizado-con-micorreo-y-recargo.md): cotización en vivo de MiCorreo + recargo, retiro en Luján y despacho manual con cualquier courier. Reemplaza el precio único provisorio del 2026-09-29.
 
-## 1. Qué hay hoy (provisorio)
+## 1. Cómo cotiza el checkout
 
-- **Un solo precio para todo el país.** Ajustes → "Costo de envío a todo el país" mantiene una única `ShippingZone` llamada "Todo el país" (CP 1000–9999, `order` 999). Código: `src/lib/admin/shipping-zone.ts`. Vacío = zona apagada: el checkout no cotiza y no deja pagar.
-- El checkout cotiza con `src/lib/shipping/quote.ts` (solo zonas; gratis por umbral si `Setting.freeShippingThreshold` tiene valor) y **solo ofrece envío a domicilio**.
-- El despacho es manual: `ShipmentStatus` avanza a mano, pero **todavía no hay** "marcar despachado" ni tracking en el detalle del pedido (hoy el bloque "Entrega" es de solo lectura) ni email de despacho.
-- Cualquier zona por provincia o por rango que se cargue después con `order` menor le gana a la de todo el país (cubierto por test).
+Orden (`src/lib/shipping/quote.ts`):
 
-## 2. Qué falta (la sesión de envíos)
+1. **Retiro en Luján** → $0 (se coordina por WhatsApp).
+2. **Envío gratis** si el subtotal ≥ `Setting.freeShippingThreshold` (hoy $87.900; vacío = nunca).
+3. **MiCorreo en vivo** (`src/lib/shipping/micorreo.ts`, port de glamify): domicilio (D) o sucursal (S), origen 6700, Clásico, 400 g por prenda (mínimo 500 g), paquete 25×20×5 cm. Al resultado se le suma `Setting.shippingSurcharge` (default $2.000, editable en Ajustes).
+4. **Respaldo:** si MiCorreo no responde, la zona "Todo el país" de Ajustes, sin recargo.
+5. Si no hay nada: no se puede pagar; el checkout ofrece el retiro y el link a /contacto.
 
-1. Cotización en vivo con MiCorreo (ADR 0004): portar de glamify `shipping/{index,micorreo,quote,tracking}.ts`. Sin `zipnova.ts`, `correo.ts` ni `orders/auto-shipment.ts`.
-2. `weightGr` en `Product`/`Order` (migración) y peso en el formulario de producto.
-3. Orden de cotización: gratis por umbral → MiCorreo en vivo → fallback `ShippingZone`.
-4. Retiro en sucursal (necesita el listado de sucursales de MiCorreo) y el selector en el checkout.
-5. Admin: pantalla de zonas (alta/edición por provincia y por rango, valores de la dueña, ajustados al alza por peso/volumen de ropa) y reemplazo del campo provisorio de Ajustes.
-6. "Marcar despachado" + tracking de texto libre en el detalle del pedido, y `shipmentDispatchedEmail`.
-7. `quoteShipping` de Hazing hoy no recibe método ni devuelve `source` (glamify sí): extender junto con `checkout-service.ts`.
+El costo se recalcula siempre en el server al crear la orden; el que ve la clienta es informativo.
 
-## 3. Datos pendientes de la dueña
+Variables (Vercel y `.env.local`, cargadas por Lazar el 2026-10-08): `MICORREO_EMAIL`, `MICORREO_PASSWORD` (cuenta de MiCorreo de la dueña), `MICORREO_GATEWAY_AUTH` (la misma de glamify). Opcionales: `MICORREO_SANDBOX`, `MICORREO_ORIGIN_CP`, `MICORREO_VELOCITY`. Verificado con el probe de glamify contra la API real: Luján → La Plata (1900), 500 g, domicilio $8.955 / sucursal $6.480.
 
-Valores de `ShippingZone` (handoff §3.4) y umbral de envío gratis (#9). Mientras tanto, el precio único de Ajustes lo carga ella o Lazar.
+## 2. Despacho
+
+Manual, con el courier que elija la dueña (hoy Via Cargo). En el detalle del pedido: "Marcar despachado" con empresa, código y link de seguimiento (https, opcional). Pasa el pedido a enviado y le manda a la clienta un mail con esos datos. Corregir el código reenvía el mail; corregir empresa o link no. Los pedidos de retiro no tienen formulario de despacho.
+
+## 3. Ledger de delegaciones
+
+- 2026-10-08 · implementación (Sonnet, ~150 k tokens, 50 llamadas, 10 min) → port de MiCorreo, orquestador con recargo y retiro, checkout con 3 métodos, Ajustes, despacho con mail, migración `20261008120000_shipping_live_quote`; juez verde (542 tests).
+- 2026-10-08 · en la sesión principal: spike de la cuenta de MiCorreo de la dueña con el probe de glamify; bug del formulario de Ajustes (`step` de 500/100 en los montos hacía que el navegador rechazara $87.900 en silencio) → `step="0.01"`.

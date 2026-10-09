@@ -74,6 +74,7 @@ function makeDeps(redemptions: number): {
       cost: 2500,
       zoneId: "z1",
       freeShipping: false,
+      source: "zone" as const,
     })),
     appUrl: "http://localhost:3000",
     isSandboxToken: true,

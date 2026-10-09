@@ -10,6 +10,7 @@ import { formatARS } from "@/lib/money";
 import { toNumber } from "@/lib/catalog/pricing";
 import { STATUS_LABELS } from "@/lib/admin/orders/service";
 import { OrderStatusControl } from "../order-status-control";
+import { DispatchForm } from "../dispatch-form";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -225,11 +226,17 @@ export default async function PedidoDetallePage({
               <span className="font-medium">
                 {order.shippingMethod === "domicilio"
                   ? "Envío a domicilio"
-                  : "Retiro en sucursal"}
+                  : order.shippingMethod === "retiro"
+                    ? "Retiro en Luján"
+                    : "Retiro en sucursal"}
               </span>
               {order.shippingZone ? ` · ${order.shippingZone.name}` : ""}
             </p>
-            {order.shippingMethod === "domicilio" ? (
+            {order.shippingMethod === "retiro" ? (
+              <p className="mt-1 text-sm text-ink-3">
+                Coordinar día y hora por WhatsApp.
+              </p>
+            ) : order.shippingMethod === "domicilio" ? (
               <address className="mt-1 text-sm not-italic text-ink-3">
                 {[addr.street, addr.number].filter(Boolean).join(" ")}
                 {addr.floorApt ? `, ${addr.floorApt}` : ""}
@@ -262,12 +269,40 @@ export default async function PedidoDetallePage({
                 {order.shipment.trackingNumber
                   ? ` · Seguimiento: ${order.shipment.trackingNumber}`
                   : ""}
+                {order.shipment.trackingUrl ? (
+                  <>
+                    {" · "}
+                    <a
+                      href={order.shipment.trackingUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline underline-offset-4 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                    >
+                      Link de seguimiento
+                    </a>
+                  </>
+                ) : null}
               </p>
             ) : (
               <p className="mt-1 text-sm text-ink-4">
-                Todavía no se cargó el envío (se hace desde Fase 9).
+                Todavía no se cargó el despacho.
               </p>
             )}
+            {order.shippingMethod !== "retiro" &&
+            ["paid", "preparing", "shipped"].includes(order.status) ? (
+              <div className="mt-4 border-t border-line pt-4">
+                <DispatchForm
+                  key={`${order.status}-${order.shipment?.trackingNumber ?? ""}`}
+                  orderId={order.id}
+                  alreadyShipped={order.status === "shipped"}
+                  initial={{
+                    carrier: order.shipment?.carrier ?? "",
+                    trackingNumber: order.shipment?.trackingNumber ?? "",
+                    trackingUrl: order.shipment?.trackingUrl ?? "",
+                  }}
+                />
+              </div>
+            ) : null}
           </SectionCard>
 
           <SectionCard title="Pagos (Mercado Pago)">

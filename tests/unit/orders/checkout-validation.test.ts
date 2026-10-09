@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   validateCheckoutForm,
   validateCheckoutFormFields,
+  isShippingMethod,
   type CheckoutFormInput,
 } from "@/lib/orders/checkout-validation";
 
@@ -127,5 +128,52 @@ describe("validateCheckoutFormFields", () => {
       "Tenés que aceptar los Términos y Condiciones.",
     );
     expect(errors.contactPhone).toBeUndefined();
+  });
+});
+
+describe("validateCheckoutFormFields por método de entrega", () => {
+  const noAddress = {
+    ...valid,
+    province: "",
+    cp: "",
+    city: "",
+    street: "",
+    number: "",
+  };
+
+  it("domicilio y sucursal exigen dirección", () => {
+    for (const shippingMethod of ["domicilio", "sucursal"] as const) {
+      const e = validateCheckoutFormFields({ ...noAddress, shippingMethod });
+      expect(Object.keys(e).sort()).toEqual(
+        ["city", "cp", "number", "province", "street"].sort(),
+      );
+    }
+  });
+
+  it("sin método se asume domicilio", () => {
+    expect(validateCheckoutFormFields(noAddress).cp).toBeDefined();
+  });
+
+  it("retiro no exige dirección pero sí contacto y términos", () => {
+    expect(
+      validateCheckoutFormFields({ ...noAddress, shippingMethod: "retiro" }),
+    ).toEqual({});
+    const e = validateCheckoutFormFields({
+      ...noAddress,
+      shippingMethod: "retiro",
+      contactPhone: "",
+      acceptedTerms: false,
+    });
+    expect(Object.keys(e).sort()).toEqual(["acceptedTerms", "contactPhone"]);
+  });
+});
+
+describe("isShippingMethod", () => {
+  it("acepta solo los 3 métodos", () => {
+    expect(isShippingMethod("retiro")).toBe(true);
+    expect(isShippingMethod("domicilio")).toBe(true);
+    expect(isShippingMethod("sucursal")).toBe(true);
+    expect(isShippingMethod("moto")).toBe(false);
+    expect(isShippingMethod(undefined)).toBe(false);
   });
 });
