@@ -291,6 +291,52 @@ describe("updateProduct", () => {
     expect(tx.productVariant.deleteMany).not.toHaveBeenCalled();
   });
 
+  describe("stock con baseStock (no pisar ventas concurrentes)", () => {
+    const run = async (v: Partial<VariantClean>) => {
+      const { deps, tx } = makeDeps({
+        prefix: "REM",
+        existingSkus: ["REM-0001"],
+        existingVariantIds: ["v1"],
+      });
+      await updateProduct(
+        "prod-1",
+        clean({
+          variants: [variant({ id: "v1", sku: "REM-0001", ...v })],
+        }),
+        deps,
+      );
+      return tx.productVariant.update.mock.calls[0][0] as {
+        data: Record<string, unknown>;
+      };
+    };
+
+    it("aplica la diferencia con increment (form cargado con 10, Dana pone 15, hubo ventas)", async () => {
+      const call = await run({ baseStock: 10, stock: 15 });
+      expect(call.data.stock).toEqual({ increment: 5 });
+    });
+
+    it("diferencia negativa → increment negativo", async () => {
+      const call = await run({ baseStock: 10, stock: 4 });
+      expect(call.data.stock).toEqual({ increment: -6 });
+    });
+
+    it("si el stock no cambió, no toca el stock (conserva las ventas)", async () => {
+      const call = await run({ baseStock: 10, stock: 10 });
+      expect("stock" in call.data).toBe(false);
+      expect(call.data.sku).toBe("REM-0001");
+    });
+
+    it("stock negativo sin cambios no se toca", async () => {
+      const call = await run({ baseStock: -2, stock: -2 });
+      expect("stock" in call.data).toBe(false);
+    });
+
+    it("sin baseStock mantiene el set absoluto", async () => {
+      const call = await run({ stock: 7 });
+      expect(call.data.stock).toBe(7);
+    });
+  });
+
   it("crea una variante nueva (sin id) sin tocar las existentes", async () => {
     const { deps, tx } = makeDeps({
       prefix: "REM",

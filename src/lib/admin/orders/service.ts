@@ -1,7 +1,11 @@
 import { prisma, type PrismaTransactionClient } from "@/lib/prisma";
 import { canTransition } from "@/lib/orders/state-machine";
-import { computeStockDecrements } from "@/lib/orders/stock";
-import type { CartLine } from "@/lib/cart/types";
+import {
+  applyPaidEffects,
+  hadStockDeducted,
+  restockItems,
+} from "@/lib/orders/stock-effects";
+import type { Money } from "@/lib/catalog/types";
 import type { OrderStatus } from "@prisma/client";
 
 /**
@@ -34,6 +38,9 @@ export interface AdminOrderItem {
 export interface AdminOrder {
   id: string;
   status: OrderStatus;
+  couponId?: string | null;
+  customerId?: string | null;
+  shippingCost?: Money;
   items: AdminOrderItem[];
 }
 
@@ -69,25 +76,12 @@ export function defaultOrdersDeps(): OrdersDeps {
 
 const orderInclude = { items: true } as const;
 
-function orderItemToLine(it: AdminOrderItem): CartLine {
-  return {
-    id: it.id,
-    kind: "variant",
-    refId: it.variantId ?? "",
-    unitPrice: 0,
-    qty: it.qty,
-  };
-}
-
-/** ¿El estado anterior ya había descontado stock? (se descuenta al confirmar pago). */
-function hadStockDeducted(status: OrderStatus): boolean {
-  return status === "paid" || status === "preparing";
-}
-
 /**
  * Cambia el estado del pedido validando la transición (`state-machine.ts`).
  * Si el destino es `cancelled` o `refunded` y el estado anterior ya había
  * descontado stock, repone el stock de las variantes en la misma transacción.
+ * Si el destino es `paid` (marcar pagado a mano), aplica los mismos efectos que el webhook
+ * de MP: descuento de stock, Shipment y uso de cupón.
  */
 export async function changeOrderStatus(
   orderId: string,
@@ -118,18 +112,19 @@ export async function changeOrderStatus(
       data: { status: to },
     });
     if (res.count !== 1) throw new OrderStatusRaceError();
-    if (shouldRestock) {
-      const decrements = computeStockDecrements(
-        order.items.map(orderItemToLine),
+    if (shouldRestock) await restockItems(tx, order.items);
+    if (to === "paid") {
+      await applyPaidEffects(
+        tx,
+        {
+          id: order.id,
+          couponId: order.couponId ?? null,
+          customerId: order.customerId ?? null,
+          shippingCost: order.shippingCost ?? 0,
+          items: order.items,
+        },
+        new Date(),
       );
-      for (const [variantId, qty] of decrements) {
-        if (variantId && qty > 0) {
-          await tx.productVariant.update({
-            where: { id: variantId },
-            data: { stock: { increment: qty } },
-          });
-        }
-      }
     }
   });
   return { id: order.id };

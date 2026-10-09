@@ -16,6 +16,17 @@ describe("canTransition", () => {
     expect(canTransition("pending_payment", "cancelled")).toBe(true);
     expect(canTransition("paid", "refunded")).toBe(true);
   });
+  it("permite reembolsar (devolución) desde preparing, shipped y delivered", () => {
+    expect(canTransition("preparing", "refunded")).toBe(true);
+    expect(canTransition("shipped", "refunded")).toBe(true);
+    expect(canTransition("delivered", "refunded")).toBe(true);
+  });
+  it("sigue sin permitir cancelar un pedido ya enviado/entregado, ni salir de estados terminales", () => {
+    expect(canTransition("shipped", "cancelled")).toBe(false);
+    expect(canTransition("delivered", "cancelled")).toBe(false);
+    expect(canTransition("refunded", "paid")).toBe(false);
+    expect(canTransition("cancelled", "refunded")).toBe(false);
+  });
   it("rechaza saltos inválidos", () => {
     expect(canTransition("pending_payment", "shipped")).toBe(false);
     expect(canTransition("delivered", "paid")).toBe(false);

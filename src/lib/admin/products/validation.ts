@@ -14,6 +14,9 @@ export interface VariantFormInput {
   swatchHex: string | null;
   sku: string;
   stock: number | "";
+  /** Stock que tenía la fila al cargar el form (solo variantes existentes). El servicio aplica
+   *  la diferencia `stock - baseStock` con increment, para no pisar ventas hechas mientras se editaba. */
+  baseStock?: number;
   lowStockThreshold: number | "";
   priceOverride: number | null;
   image: string | null;
@@ -50,6 +53,7 @@ export interface VariantClean {
   swatchHex: string | null;
   sku: string;
   stock: number;
+  baseStock?: number;
   lowStockThreshold: number;
   priceOverride: number | null;
   image: string | null;
@@ -118,11 +122,22 @@ export function validateVariant(
     swatchHex = hex.toUpperCase();
   }
 
-  if (!isNonNegativeInt(input.stock))
+  // Una fila existente puede tener stock negativo (oversell registrado): se acepta ese valor
+  // al re-guardar. Las variantes nuevas siguen exigiendo >= 0.
+  const stockOk =
+    input.id != null
+      ? typeof input.stock === "number" && Number.isInteger(input.stock)
+      : isNonNegativeInt(input.stock);
+  if (!stockOk)
     return {
       ok: false,
-      error: "El stock debe ser un número entero mayor o igual a 0.",
+      error:
+        input.id != null
+          ? "El stock debe ser un número entero."
+          : "El stock debe ser un número entero mayor o igual a 0.",
     };
+  if (input.baseStock != null && !Number.isInteger(input.baseStock))
+    return { ok: false, error: "El stock original no es válido." };
   if (!isNonNegativeInt(input.lowStockThreshold))
     return {
       ok: false,
@@ -163,6 +178,7 @@ export function validateVariant(
       swatchHex,
       sku,
       stock: typeof input.stock === "number" ? input.stock : 0,
+      baseStock: input.baseStock,
       lowStockThreshold:
         typeof input.lowStockThreshold === "number"
           ? input.lowStockThreshold

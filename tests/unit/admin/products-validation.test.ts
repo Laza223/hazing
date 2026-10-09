@@ -89,6 +89,21 @@ describe("validateVariant", () => {
     );
   });
 
+  it("una variante existente (con id) acepta stock negativo (oversell registrado); una nueva no", () => {
+    const r = validateVariant(
+      baseVariant({ id: "v1", stock: -2, baseStock: -2 }),
+      "letters",
+    );
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.value).toMatchObject({ stock: -2, baseStock: -2 });
+    expect(
+      validateVariant(baseVariant({ id: "v1", stock: -1.5 }), "letters").ok,
+    ).toBe(false);
+    expect(validateVariant(baseVariant({ stock: -2 }), "letters").ok).toBe(
+      false,
+    );
+  });
+
   it("rechaza lowStockThreshold negativo", () => {
     expect(
       validateVariant(baseVariant({ lowStockThreshold: -2 }), "letters").ok,

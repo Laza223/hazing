@@ -113,14 +113,14 @@ function makeFakeDb(opts: FakeDbOpts = {}) {
       }),
     },
     productVariant: {
-      // Update atómico con precondición de stock real (stock >= gte) — como Postgres: si no
-      // alcanza, no decrementa y devuelve count 0 (señal real de oversold/carrera perdida).
-      updateMany: vi.fn(async ({ where, data }: any) => {
+      // Update atómico de stock (decrement/increment) que devuelve el stock resultante — como
+      // Postgres con RETURNING; puede quedar negativo (oversell registrado).
+      update: vi.fn(async ({ where, data }: any) => {
         const current = state.variants.get(where.id) ?? 0;
-        const minRequired = where.stock?.gte ?? 0;
-        if (current < minRequired) return { count: 0 };
-        state.variants.set(where.id, current - data.stock.decrement);
-        return { count: 1 };
+        const next =
+          current - (data.stock.decrement ?? 0) + (data.stock.increment ?? 0);
+        state.variants.set(where.id, next);
+        return { stock: next };
       }),
     },
     coupon: {
@@ -328,7 +328,7 @@ describe("processWebhook", () => {
     expect(state.order.status).toBe("paid"); // no lo pisó con "cancelled"
   });
 
-  it("stock insuficiente al momento de decrementar (perdió la carrera contra otro pedido) → no sobrevende, marca oversoldLines", async () => {
+  it("stock insuficiente al momento de decrementar → descuenta igual (queda negativo), el pago se acepta y marca oversoldLines", async () => {
     const { db, state } = makeFakeDb();
     state.variants.set("v1", 1); // otro pedido ya se llevó el resto justo antes de este decremento
     const deps = makeDeps({ db }); // este pedido pide qty:2 (ver items del fake db)
@@ -337,7 +337,7 @@ describe("processWebhook", () => {
       deps,
     );
     expect(r.status).toBe(200);
-    expect(state.variants.get("v1")).toBe(1); // NO decrementó (no hay negativo, no hay parcial)
+    expect(state.variants.get("v1")).toBe(-1); // 1 - 2: el negativo registra lo adeudado
     expect(state.order.status).toBe("paid"); // el pago se acepta igual, se avisa por email
     const ownerEmail = (deps.sendEmail as any).mock.calls.find(
       (c: any) => c[0].to === "owner@test.com",
@@ -475,6 +475,80 @@ describe("processWebhook", () => {
     const r = await hook(db, "mp-B", "cancelled");
     expect(r.status).toBe(200);
     expect(state.order.status).toBe("cancelled");
+  });
+
+  it("oversell + reembolso desde el webhook repone todo: el stock vuelve al original (simetría)", async () => {
+    const { db, state } = makeFakeDb();
+    state.variants.set("v1", 1);
+    await hook(db, "mp-pay-1", "approved");
+    expect(state.variants.get("v1")).toBe(-1);
+    await hook(db, "mp-pay-1", "refunded");
+    expect(state.order.status).toBe("refunded");
+    expect(state.variants.get("v1")).toBe(1);
+  });
+
+  describe("reembolso/contracargo de MP sobre pedido que ya descontó stock", () => {
+    it.each(["shipped", "delivered"])(
+      "pedido %s + refunded por webhook → refunded SIN reponer stock (la mercadería ya salió)",
+      async (from) => {
+        const { db, state } = makeFakeDb();
+        paidWithApprovedA(state);
+        state.order.status = from;
+        state.variants.set("v1", 3);
+        const r = await hook(db, "mp-A", "refunded");
+        expect(r.status).toBe(200);
+        expect(state.order.status).toBe("refunded");
+        expect(state.variants.get("v1")).toBe(3);
+      },
+    );
+
+    it.each(["paid", "preparing"])(
+      "pedido %s + refunded → refunded y repone el stock",
+      async (from) => {
+        const { db, state } = makeFakeDb();
+        paidWithApprovedA(state);
+        state.order.status = from;
+        state.variants.set("v1", 3); // ya descontado (5 - 2)
+        const r = await hook(db, "mp-A", "refunded");
+        expect(r.status).toBe(200);
+        expect(state.order.status).toBe("refunded");
+        expect(state.variants.get("v1")).toBe(5);
+      },
+    );
+
+    it("pedido paid + cancelled (único intento) → cancelled y repone el stock", async () => {
+      const { db, state } = makeFakeDb();
+      state.order.status = "paid";
+      state.variants.set("v1", 3);
+      await hook(db, "mp-B", "cancelled");
+      expect(state.order.status).toBe("cancelled");
+      expect(state.variants.get("v1")).toBe(5);
+    });
+
+    it("el mismo aviso 2× repone una sola vez", async () => {
+      const { db, state } = makeFakeDb();
+      paidWithApprovedA(state);
+      state.variants.set("v1", 3);
+      await hook(db, "mp-A", "refunded");
+      await hook(db, "mp-A", "refunded");
+      expect(state.variants.get("v1")).toBe(5);
+    });
+
+    it("pedido pending_payment + cancelled → NO repone (nunca descontó)", async () => {
+      const { db, state } = makeFakeDb();
+      await hook(db, "mp-B", "cancelled");
+      expect(state.order.status).toBe("cancelled");
+      expect(state.variants.get("v1")).toBe(5);
+    });
+
+    it("perdió la guarda (otro cambió el estado) → NO repone", async () => {
+      const { db, state } = makeFakeDb();
+      paidWithApprovedA(state);
+      state.variants.set("v1", 3);
+      db.order.updateMany = vi.fn(async () => ({ count: 0 }));
+      await hook(db, "mp-A", "refunded");
+      expect(state.variants.get("v1")).toBe(3);
+    });
   });
 
   describe("approved sobre pedido cerrado (cobro que no se reactiva)", () => {

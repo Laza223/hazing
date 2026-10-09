@@ -7,9 +7,10 @@ import type {
 const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   pending_payment: ["paid", "cancelled"],
   paid: ["preparing", "refunded", "cancelled"],
-  preparing: ["shipped", "cancelled"],
-  shipped: ["delivered"],
-  delivered: [],
+  // `refunded` desde preparing/shipped/delivered: devolución/arrepentimiento ya despachado o recibido.
+  preparing: ["shipped", "cancelled", "refunded"],
+  shipped: ["delivered", "refunded"],
+  delivered: ["refunded"],
   cancelled: [],
   refunded: [],
 };

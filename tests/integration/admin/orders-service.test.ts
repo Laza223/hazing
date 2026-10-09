@@ -14,14 +14,26 @@ const order = (over: Partial<AdminOrder> = {}): AdminOrder => ({
 
 function makeDeps(
   o: AdminOrder | null,
-  opts: { updateManyCount?: number } = {},
+  opts: { updateManyCount?: number; stockAfterUpdate?: number } = {},
 ) {
   const tx = {
     order: {
       update: vi.fn(async () => ({})),
       updateMany: vi.fn(async () => ({ count: opts.updateManyCount ?? 1 })),
     },
-    productVariant: { update: vi.fn(async () => ({})) },
+    productVariant: {
+      update: vi.fn(async () => ({ stock: opts.stockAfterUpdate ?? 10 })),
+    },
+    shipment: { create: vi.fn(async () => ({})) },
+    coupon: {
+      findUnique: vi.fn(async () => ({
+        maxUses: null,
+        perCustomerLimit: null,
+      })),
+      update: vi.fn(async () => ({})),
+      updateMany: vi.fn(async () => ({ count: 1 })),
+    },
+    couponRedemption: { upsert: vi.fn(async () => ({})) },
   };
   const deps: OrdersDeps = {
     db: {
@@ -106,6 +118,76 @@ describe("changeOrderStatus", () => {
       data: { status: "cancelled" },
     });
     expect(tx.productVariant.update).not.toHaveBeenCalled();
+  });
+
+  it.each(["preparing", "shipped", "delivered"] as const)(
+    "reembolsar un pedido %s (devolución) repone stock",
+    async (status) => {
+      const { deps, tx } = makeDeps(order({ status }));
+      await changeOrderStatus("ord-1", "refunded", deps);
+      expect(tx.order.updateMany).toHaveBeenCalledWith({
+        where: { id: "ord-1", status },
+        data: { status: "refunded" },
+      });
+      expect(tx.productVariant.update).toHaveBeenCalledWith({
+        where: { id: "v1" },
+        data: { stock: { increment: 2 } },
+      });
+    },
+  );
+
+  describe("marcar pagado a mano (pending_payment → paid)", () => {
+    const pending = (over: Partial<AdminOrder> = {}) =>
+      order({
+        status: "pending_payment",
+        couponId: "co-1",
+        customerId: "cust-1",
+        shippingCost: 2500,
+        ...over,
+      });
+
+    it("descuenta stock, crea Shipment pending y usa el cupón", async () => {
+      const { deps, tx } = makeDeps(pending());
+      await changeOrderStatus("ord-1", "paid", deps);
+      expect(tx.order.updateMany).toHaveBeenCalledWith({
+        where: { id: "ord-1", status: "pending_payment" },
+        data: { status: "paid" },
+      });
+      expect(tx.productVariant.update).toHaveBeenCalledWith({
+        where: { id: "v1" },
+        data: { stock: { decrement: 2 } },
+        select: { stock: true },
+      });
+      expect(tx.shipment.create).toHaveBeenCalledWith({
+        data: { orderId: "ord-1", status: "pending", cost: 2500 },
+      });
+      expect(tx.coupon.update).toHaveBeenCalledTimes(1);
+      expect(tx.couponRedemption.upsert).toHaveBeenCalledTimes(1);
+    });
+
+    it("sin cupón no toca cupones", async () => {
+      const { deps, tx } = makeDeps(pending({ couponId: null }));
+      await changeOrderStatus("ord-1", "paid", deps);
+      expect(tx.shipment.create).toHaveBeenCalledTimes(1);
+      expect(tx.coupon.update).not.toHaveBeenCalled();
+    });
+
+    it("si perdió la guarda (count 0) no descuenta stock ni crea Shipment", async () => {
+      const { deps, tx } = makeDeps(pending(), { updateManyCount: 0 });
+      await expect(changeOrderStatus("ord-1", "paid", deps)).rejects.toThrow(
+        /cambió mientras lo editabas/i,
+      );
+      expect(tx.productVariant.update).not.toHaveBeenCalled();
+      expect(tx.shipment.create).not.toHaveBeenCalled();
+    });
+
+    it("descuenta aunque el stock quede negativo (no aborta)", async () => {
+      const { deps, tx } = makeDeps(pending(), { stockAfterUpdate: -2 });
+      await expect(
+        changeOrderStatus("ord-1", "paid", deps),
+      ).resolves.toBeDefined();
+      expect(tx.productVariant.update).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("rechaza cancelar un pedido ya entregado", async () => {

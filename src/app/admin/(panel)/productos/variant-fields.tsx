@@ -198,7 +198,7 @@ export function VariantFields({
                   label="Stock"
                   type="number"
                   inputMode="numeric"
-                  min={0}
+                  min={v.id != null ? undefined : 0}
                   value={v.stock}
                   onChange={(e) =>
                     updateVariant(v.size, v.color, {

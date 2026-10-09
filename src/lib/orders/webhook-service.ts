@@ -8,7 +8,7 @@ import {
   decideWebhookEffects,
   paymentStatusAdvances,
 } from "@/lib/payments/webhook-effects";
-import { computeStockDecrements, type Shortage } from "@/lib/orders/stock";
+import { applyPaidEffects, restockItems } from "@/lib/orders/stock-effects";
 import { sendEmail as realSendEmail } from "@/lib/email/resend";
 import {
   orderConfirmationEmail,
@@ -17,7 +17,6 @@ import {
   type OrderEmailData,
 } from "@/lib/email/templates";
 import { toNumber } from "@/lib/catalog/pricing";
-import type { CartLine } from "@/lib/cart/types";
 import type { OrderStatus } from "@prisma/client";
 import type { Money } from "@/lib/catalog/types";
 
@@ -105,17 +104,6 @@ export function defaultWebhookDeps(): ProcessWebhookDeps {
           select: { pickupAddress: true },
         })
       )?.pickupAddress ?? null,
-  };
-}
-
-/** Convierte un OrderItem (con snapshots) a CartLine para computar decrementos de stock. */
-function orderItemToLine(it: WebhookOrderItem): CartLine {
-  return {
-    id: it.id ?? it.variantId ?? "",
-    kind: "variant",
-    refId: it.variantId ?? "",
-    unitPrice: toNumber(it.unitPriceSnapshot),
-    qty: it.qty,
   };
 }
 
@@ -241,10 +229,21 @@ export async function processWebhook(
       // movió el pedido a otro estado mientras tanto, esta escritura pierde la carrera (count 0)
       // en vez de pisar ciegamente — evita que un webhook "cancelled"/"refunded" desactualizado
       // sobrescriba un pedido que ya está "paid".
-      await tx.order.updateMany({
+      const res = await tx.order.updateMany({
         where: { id: order.id, status: order.status },
         data: { status: effects.setOrderStatusTo },
       });
+      // Reembolso/contracargo en MP sobre un pedido que ya descontó stock: reponer en la misma tx
+      // (el estado cancelled/refunded es terminal, nadie más lo repondría). Solo si ganó la guarda.
+      if (
+        res.count === 1 &&
+        (effects.setOrderStatusTo === "cancelled" ||
+          effects.setOrderStatusTo === "refunded") &&
+        // Solo paid/preparing: en shipped/delivered la mercadería ya salió, no se repone sola.
+        (order.status === "paid" || order.status === "preparing")
+      ) {
+        await restockItems(tx, order.items);
+      }
     }
 
     // approved pero el pedido ya estaba cancelado/refunded: no hay transición posible.
@@ -258,121 +257,21 @@ export async function processWebhook(
 
     // Efectos de una sola vez: SOLO si este webhook ganó la transición a paid.
     if (wonPaidTransition) {
-      const lines = order.items.map(orderItemToLine);
-      const decrements = computeStockDecrements(lines);
-      // Update atómico CON precondición de stock real (stock >= qty) por variante — a diferencia
-      // de leer un snapshot con findMany y decrementar después, esto evita que dos pedidos que
-      // compiten por la misma variante lean el mismo stock y ambos decrementen (oversell, stock
-      // negativo). count===0 es la señal real de faltante.
-      const shortages: Shortage[] = [];
-      for (const [variantId, qty] of decrements) {
-        const res = await tx.productVariant.updateMany({
-          where: { id: variantId, stock: { gte: qty } },
-          data: { stock: { decrement: qty } },
-        });
-        if (res.count === 0)
-          shortages.push({ variantId, needed: qty, available: 0 });
-      }
-      if (shortages.length > 0) {
+      const { oversoldVariantIds } = await applyPaidEffects(
+        tx,
+        order,
+        deps.now ?? new Date(),
+      );
+      if (oversoldVariantIds.length > 0) {
         oversoldLines = order.items
           .filter(
-            (it) =>
-              it.variantId &&
-              shortages.some((s) => s.variantId === it.variantId),
+            (it) => it.variantId && oversoldVariantIds.includes(it.variantId),
           )
           .map((it) => ({
             name: it.variantNameSnapshot
               ? `${it.productNameSnapshot} (${it.variantNameSnapshot})`
               : it.productNameSnapshot,
           }));
-      }
-      // Shipment queda `pending` — el envío es 100% manual (ver docs/spec/00-handoff.md §2.2),
-      // sin auto-import a ningún courier. La dueña carga tracking/marca despachado desde el admin (Fase 9).
-      await tx.shipment.create({
-        data: {
-          orderId: order.id,
-          status: "pending",
-          cost: toNumber(order.shippingCost),
-        },
-      });
-
-      if (order.couponId) {
-        // TOCTOU: perCustomerLimit/maxUses se validan en el checkout (lectura, antes de pagar), pero
-        // el incremento real pasa acá. Reafirmar de forma atómica (mismo patrón que el stock: update
-        // condicionado al valor leído en este momento) evita que dos pedidos que ganaron la carrera
-        // del checkout con el mismo cupón terminen superando el límite al pagar ambos.
-        const coupon = await tx.coupon.findUnique({
-          where: { id: order.couponId },
-          select: { maxUses: true, perCustomerLimit: true },
-        });
-        if (coupon?.maxUses != null) {
-          await tx.coupon.updateMany({
-            where: { id: order.couponId, usedCount: { lt: coupon.maxUses } },
-            data: { usedCount: { increment: 1 } },
-          });
-        } else {
-          await tx.coupon.update({
-            where: { id: order.couponId },
-            data: { usedCount: { increment: 1 } },
-          });
-        }
-
-        if (order.customerId && coupon) {
-          if (coupon.perCustomerLimit != null) {
-            const res = await tx.couponRedemption.updateMany({
-              where: {
-                customerId: order.customerId,
-                couponId: order.couponId,
-                redeemedCount: { lt: coupon.perCustomerLimit },
-              },
-              data: {
-                redeemedCount: { increment: 1 },
-                lastRedeemedAt: deps.now ?? new Date(),
-              },
-            });
-            if (res.count === 0) {
-              // No había fila todavía (primer uso de esta clienta) → crearla si el límite lo permite.
-              // Si ya existía, es que esta clienta ya está en el límite: no incrementar más.
-              const exists = await tx.couponRedemption.findUnique({
-                where: {
-                  customerId_couponId: {
-                    customerId: order.customerId,
-                    couponId: order.couponId,
-                  },
-                },
-              });
-              if (!exists && coupon.perCustomerLimit > 0) {
-                await tx.couponRedemption.create({
-                  data: {
-                    customerId: order.customerId,
-                    couponId: order.couponId,
-                    redeemedCount: 1,
-                    lastRedeemedAt: deps.now ?? new Date(),
-                  },
-                });
-              }
-            }
-          } else {
-            await tx.couponRedemption.upsert({
-              where: {
-                customerId_couponId: {
-                  customerId: order.customerId,
-                  couponId: order.couponId,
-                },
-              },
-              create: {
-                customerId: order.customerId,
-                couponId: order.couponId,
-                redeemedCount: 1,
-                lastRedeemedAt: deps.now ?? new Date(),
-              },
-              update: {
-                redeemedCount: { increment: 1 },
-                lastRedeemedAt: deps.now ?? new Date(),
-              },
-            });
-          }
-        }
       }
     }
   });

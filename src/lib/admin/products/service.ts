@@ -373,9 +373,19 @@ export async function updateProduct(
         const v = resolvedVariants[i];
         const row = variantRows[i];
         if (v.id != null && existingIds.has(v.id)) {
+          // Con `baseStock` (stock al abrir el form) se aplica solo la diferencia, así las ventas
+          // ocurridas mientras se editaba no se pierden; sin cambio, no se toca el stock.
+          // Sin `baseStock` (fila reactivada o cliente viejo) se mantiene el set absoluto.
+          const { stock, ...rest } = row;
+          const stockData =
+            v.baseStock == null
+              ? { stock }
+              : stock === v.baseStock
+                ? {}
+                : { stock: { increment: stock - v.baseStock } };
           await tx.productVariant.update({
             where: { id: v.id },
-            data: { ...row },
+            data: { ...rest, ...stockData },
           });
         } else {
           await tx.productVariant.create({ data: { ...row, productId: id } });

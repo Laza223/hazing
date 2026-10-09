@@ -71,6 +71,7 @@ export default async function EditarProductoPage({
       swatchHex: v.swatchHex,
       sku: v.sku,
       stock: v.stock,
+      baseStock: v.stock,
       lowStockThreshold: v.lowStockThreshold,
       priceOverride: v.priceOverride != null ? toNumber(v.priceOverride) : null,
       image: v.image,
