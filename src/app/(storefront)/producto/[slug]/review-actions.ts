@@ -5,6 +5,7 @@ import { publicErrorMessage } from "@/lib/prisma-errors";
 import { revalidatePath } from "next/cache";
 import { getCustomer } from "@/lib/customer/auth";
 import { createReview } from "@/lib/reviews/service";
+import { publicAuthorName } from "@/lib/reviews/author";
 import { prisma } from "@/lib/prisma";
 import type { ActionResult } from "@/lib/forms/action-result";
 import { enforceRateLimit } from "@/lib/rate-limit";
@@ -37,7 +38,7 @@ export async function createReviewAction(
       {
         customerId: customer?.id ?? null,
         authorName: customer
-          ? (customer.name ?? customer.email)
+          ? publicAuthorName(customer.name)
           : (authorName ?? ""),
         productId,
         rating,

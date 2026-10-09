@@ -45,7 +45,7 @@ Límites conocidos: es por IP, no por cuenta (un ataque distribuido contra una c
 ## 4. Día del lanzamiento (orden)
 
 1. Dana carga categorías reales, zonas de envío y umbral de envío gratis desde el admin (usuaria owner ya creada).
-2. `pnpm db:seed:clean` (borra solo `demo-*`; pide confirmar el host por terminal).
+2. `pnpm db:seed:clean` (borra solo filas `demo-*`: productos y categorías demo vacías; nunca categorías ni SKUs reales; pide confirmar el host por terminal).
 3. Dana carga los productos reales con fotos.
 4. Credenciales reales de MP en Vercel (Production) + webhook apuntando a producción; redeploy.
 5. Compra real de monto mínimo con tarjeta propia → verificar `paid`, stock descontado, mails a la clienta y a la dueña → reembolso manual desde MP.

@@ -2,6 +2,7 @@ import { PrismaClient, type Prisma, type SizeSystem } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { confirmProdWrite } from "../scripts/prod-write-guard.ts";
 import { SIZE_SCALES } from "../src/lib/catalog/sizes.ts";
+import { isDemoSkuPrefix, isDemoSlug } from "./demo-markers.ts";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -30,27 +31,27 @@ interface SeedCategory {
 
 const CATEGORIES: SeedCategory[] = [
   {
-    slug: "remeras-y-tops",
+    slug: "demo-remeras-y-tops",
     name: "Remeras y Tops",
-    skuPrefix: "REM",
+    skuPrefix: "DRE",
     order: 0,
   },
-  { slug: "pantalones", name: "Pantalones", skuPrefix: "PAN", order: 1 },
+  { slug: "demo-pantalones", name: "Pantalones", skuPrefix: "DPA", order: 1 },
   {
-    slug: "jeans",
+    slug: "demo-jeans",
     name: "Jeans",
-    skuPrefix: "JEA",
+    skuPrefix: "DJE",
     order: 0,
-    parentSlug: "pantalones",
+    parentSlug: "demo-pantalones",
   },
-  { slug: "vestidos", name: "Vestidos", skuPrefix: "VES", order: 2 },
+  { slug: "demo-vestidos", name: "Vestidos", skuPrefix: "DVE", order: 2 },
   {
-    slug: "buzos-y-camperas",
+    slug: "demo-buzos-y-camperas",
     name: "Buzos y Camperas",
-    skuPrefix: "BUZ",
+    skuPrefix: "DBU",
     order: 3,
   },
-  { slug: "accesorios", name: "Accesorios", skuPrefix: "ACC", order: 4 },
+  { slug: "demo-accesorios", name: "Accesorios", skuPrefix: "DAC", order: 4 },
 ];
 
 interface SeedVariant {
@@ -78,7 +79,7 @@ const PRODUCTS: SeedProduct[] = [
   {
     slug: "demo-remera-basica-algodon",
     name: "Remera Básica de Algodón",
-    categorySlug: "remeras-y-tops",
+    categorySlug: "demo-remeras-y-tops",
     sizeSystem: "letters",
     description: "Remera de algodón peinado, corte clásico, para el día a día.",
     basePrice: 15000,
@@ -98,7 +99,7 @@ const PRODUCTS: SeedProduct[] = [
   {
     slug: "demo-top-escote-v",
     name: "Top Escote V",
-    categorySlug: "remeras-y-tops",
+    categorySlug: "demo-remeras-y-tops",
     sizeSystem: "letters",
     description:
       "Top liviano con escote en V, ideal para combinar o usar solo.",
@@ -122,7 +123,7 @@ const PRODUCTS: SeedProduct[] = [
   {
     slug: "demo-remera-oversize-estampada",
     name: "Remera Oversize Estampada",
-    categorySlug: "remeras-y-tops",
+    categorySlug: "demo-remeras-y-tops",
     sizeSystem: "letters",
     description:
       "Remera oversize con estampa minimalista, tela de gramaje pesado.",
@@ -141,7 +142,7 @@ const PRODUCTS: SeedProduct[] = [
   {
     slug: "demo-pantalon-cargo",
     name: "Pantalón Cargo",
-    categorySlug: "pantalones",
+    categorySlug: "demo-pantalones",
     sizeSystem: "numeric",
     description: "Pantalón cargo con bolsillos funcionales, tiro medio.",
     basePrice: 24000,
@@ -159,7 +160,7 @@ const PRODUCTS: SeedProduct[] = [
   {
     slug: "demo-jean-mom-tiro-alto",
     name: "Jean Mom Tiro Alto",
-    categorySlug: "jeans",
+    categorySlug: "demo-jeans",
     sizeSystem: "numeric",
     description: "Jean mom de tiro alto, silueta relajada, denim rígido.",
     basePrice: 28000,
@@ -179,7 +180,7 @@ const PRODUCTS: SeedProduct[] = [
   {
     slug: "demo-jean-recto-clasico",
     name: "Jean Recto Clásico",
-    categorySlug: "jeans",
+    categorySlug: "demo-jeans",
     sizeSystem: "numeric",
     description: "Jean de corte recto clásico, lavado medio, uso diario.",
     basePrice: 26000,
@@ -199,7 +200,7 @@ const PRODUCTS: SeedProduct[] = [
   {
     slug: "demo-vestido-midi-lino",
     name: "Vestido Midi de Lino",
-    categorySlug: "vestidos",
+    categorySlug: "demo-vestidos",
     sizeSystem: "letters",
     description: "Vestido midi de lino fresco, corte suelto, manga corta.",
     basePrice: 32000,
@@ -219,7 +220,7 @@ const PRODUCTS: SeedProduct[] = [
   {
     slug: "demo-vestido-camisero",
     name: "Vestido Camisero",
-    categorySlug: "vestidos",
+    categorySlug: "demo-vestidos",
     sizeSystem: "letters",
     description:
       "Vestido camisero entallado, abotonado al frente, cinturón a tono.",
@@ -241,7 +242,7 @@ const PRODUCTS: SeedProduct[] = [
   {
     slug: "demo-buzo-oversize-friza",
     name: "Buzo Oversize Friza",
-    categorySlug: "buzos-y-camperas",
+    categorySlug: "demo-buzos-y-camperas",
     sizeSystem: "letters",
     description:
       "Buzo oversize de friza interior, cuello redondo, puños acanalados.",
@@ -262,7 +263,7 @@ const PRODUCTS: SeedProduct[] = [
   {
     slug: "demo-campera-denim",
     name: "Campera de Denim",
-    categorySlug: "buzos-y-camperas",
+    categorySlug: "demo-buzos-y-camperas",
     sizeSystem: "letters",
     description:
       "Campera de denim clásica, botones metálicos, bolsillos al pecho.",
@@ -279,7 +280,7 @@ const PRODUCTS: SeedProduct[] = [
   {
     slug: "demo-cinturon-cuero",
     name: "Cinturón de Cuero",
-    categorySlug: "accesorios",
+    categorySlug: "demo-accesorios",
     sizeSystem: "one_size",
     description: "Cinturón de cuero genuino, hebilla metálica minimalista.",
     basePrice: 9500,
@@ -293,7 +294,7 @@ const PRODUCTS: SeedProduct[] = [
   {
     slug: "demo-panuelo-seda-estampado",
     name: "Pañuelo de Seda Estampado",
-    categorySlug: "accesorios",
+    categorySlug: "demo-accesorios",
     sizeSystem: "one_size",
     description:
       "Pañuelo de seda con estampa exclusiva, para el cuello o el bolso.",
@@ -419,6 +420,12 @@ async function upsertProducts(idBySlug: Map<string, string>): Promise<void> {
         active: true,
         order: order++,
       };
+      const existing = await prisma.productVariant.findUnique({
+        where: { sku },
+        select: { productId: true },
+      });
+      if (existing && existing.productId !== product.id)
+        throw new Error(`SKU ${sku} ya pertenece a otro producto: no se pisa.`);
       await prisma.productVariant.upsert({
         where: { sku },
         update: { ...data },
@@ -428,7 +435,19 @@ async function upsertProducts(idBySlug: Map<string, string>): Promise<void> {
   }
 }
 
+function assertOnlyDemoRows(): void {
+  const bad = [
+    ...CATEGORIES.filter(
+      (c) => !isDemoSlug(c.slug) || !isDemoSkuPrefix(c.skuPrefix),
+    ).map((c) => c.slug),
+    ...PRODUCTS.filter((p) => !isDemoSlug(p.slug)).map((p) => p.slug),
+  ];
+  if (bad.length > 0)
+    throw new Error(`El seed solo escribe filas demo; no-demo: ${bad}`);
+}
+
 async function main(): Promise<void> {
+  assertOnlyDemoRows();
   await confirmProdWrite(
     "sembrar el catálogo de prueba (categorías y productos demo-*)",
   );

@@ -32,7 +32,7 @@ export interface CreateReviewDb {
 
 export interface CreateReviewInput {
   customerId: string | null;
-  /** Nombre a mostrar: logueada → name ?? email; invitada → nombre del form. */
+  /** Nombre a mostrar: logueada → name o "Clienta" (nunca email); invitada → nombre del form. */
   authorName: string;
   productId: string;
   rating: number;

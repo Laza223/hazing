@@ -1,4 +1,5 @@
 import { RatingStars } from "@/components/ui/rating-stars";
+import { publicAuthorName } from "@/lib/reviews/author";
 
 export interface ReviewView {
   id: string;
@@ -29,7 +30,8 @@ export function ReviewCard({ review }: { review: ReviewView }) {
       <p className="text-sm leading-relaxed text-ink-2">{review.body}</p>
 
       <p className="pt-0.5 text-xs text-ink-3">
-        {review.authorName} · {review.createdAt.toLocaleDateString("es-AR")}
+        {publicAuthorName(review.authorName)} ·{" "}
+        {review.createdAt.toLocaleDateString("es-AR")}
       </p>
     </article>
   );

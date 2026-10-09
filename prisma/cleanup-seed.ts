@@ -1,8 +1,9 @@
 /**
  * Limpieza de datos de PRUEBA (seed) en la base.
  *
- * Borra SOLO lo que sembró `prisma/seed.ts`: los productos `demo-*` y las categorías
- * que creó el seed si quedaron sin productos. NO toca productos reales (otros slugs)
+ * Borra SOLO filas con marca demo (slug `demo-*`): los productos `demo-*` y las
+ * categorías `demo-*` que quedaron sin productos. Las categorías reales (tops, jeans,
+ * etc.) nunca se tocan, aunque estén vacías. NO toca productos reales (otros slugs)
  * ni el historial de ventas reales: `OrderItem.variantId` es opcional → al borrar una
  * variante se nulea el FK pero se conservan los snapshots del pedido. `CartItem.variantId`
  * en cambio es obligatorio (sin cascada) — si algún carrito real quedó apuntando a una
@@ -17,30 +18,10 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { confirmProdWrite } from "../scripts/prod-write-guard.ts";
+import { DEMO_SLUG_PREFIX } from "./demo-markers.ts";
 
-const SEED_PRODUCT_SLUGS = [
-  "demo-remera-basica-algodon",
-  "demo-top-escote-v",
-  "demo-remera-oversize-estampada",
-  "demo-pantalon-cargo",
-  "demo-jean-mom-tiro-alto",
-  "demo-jean-recto-clasico",
-  "demo-vestido-midi-lino",
-  "demo-vestido-camisero",
-  "demo-buzo-oversize-friza",
-  "demo-campera-denim",
-  "demo-cinturon-cuero",
-  "demo-panuelo-seda-estampado",
-];
-// Slugs de categoría que crea el seed — se borran solo si quedan sin productos.
-const SEED_CATEGORY_SLUGS = [
-  "jeans", // hija de "pantalones" — se evalúa antes que su padre
-  "remeras-y-tops",
-  "pantalones",
-  "vestidos",
-  "buzos-y-camperas",
-  "accesorios",
-];
+// Solo filas con marca demo (slug `demo-*`); nunca por coincidencia con slugs reales.
+const demoSlug = { startsWith: DEMO_SLUG_PREFIX };
 
 const apply = process.argv.includes("--apply");
 
@@ -66,7 +47,7 @@ async function main(): Promise<void> {
   console.log("");
 
   const products = await prisma.product.findMany({
-    where: { slug: { in: SEED_PRODUCT_SLUGS } },
+    where: { slug: demoSlug },
     select: {
       id: true,
       slug: true,
@@ -95,9 +76,7 @@ async function main(): Promise<void> {
   );
   const variantsCascade = products.reduce((n, p) => n + p._count.variants, 0);
 
-  console.log(
-    `Productos seed a borrar: ${products.length}/${SEED_PRODUCT_SLUGS.length}`,
-  );
+  console.log(`Productos demo-* a borrar: ${products.length}`);
   for (const p of products)
     console.log(`  - ${p.slug} (${p.name}) — ${p._count.variants} variantes`);
   console.log("");
@@ -134,13 +113,19 @@ async function main(): Promise<void> {
   const result = await prisma.$transaction(
     async (tx) => {
       const delProducts = await tx.product.deleteMany({
-        where: { slug: { in: SEED_PRODUCT_SLUGS } },
+        where: { slug: demoSlug },
       });
 
       let delCategories = 0;
-      for (const slug of SEED_CATEGORY_SLUGS) {
+      // Hijas primero: una hija vacía borrada libera a su padre demo.
+      const demoCategories = await tx.category.findMany({
+        where: { slug: demoSlug },
+        orderBy: { parentId: { sort: "asc", nulls: "last" } },
+        select: { id: true },
+      });
+      for (const { id } of demoCategories) {
         const category = await tx.category.findUnique({
-          where: { slug },
+          where: { id },
           select: {
             id: true,
             _count: {

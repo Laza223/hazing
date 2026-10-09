@@ -50,7 +50,7 @@ Mapa completo relevado el 2026-09-24 (reconnaissance, Sonnet). Resumen:
 
 ## 4. Datos de demo
 
-`prisma/seed.ts` carga categorías reales tentativas y productos de demo con slug `demo-*`, para poder recorrer la tienda antes de que la dueña cargue su catálogo. Como dev y producción comparten base (igual que glamify), el seed pasa por `scripts/prod-write-guard.ts` y existe un `prisma/cleanup-seed.ts` que borra solo lo `demo-*`. Corre con el TypeScript nativo de Node 24 (`node --env-file=.env.local prisma/seed.ts`): sin `tsx`, sin dependencias nuevas.
+`prisma/seed.ts` carga categorías y productos de demo, todos con slug `demo-*` (y prefijos de SKU `D**`), para poder recorrer la tienda antes de que la dueña cargue su catálogo. Como dev y producción comparten base (igual que glamify), el seed pasa por `scripts/prod-write-guard.ts` y existe un `prisma/cleanup-seed.ts` que borra solo filas `demo-*`. Corre con el TypeScript nativo de Node 24 (`node --env-file=.env.local prisma/seed.ts`): sin `tsx`, sin dependencias nuevas.
 
 ## 5. Cómo se cierra cada sub-fase
 

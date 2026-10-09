@@ -2,8 +2,8 @@
  * Categorías reales de la tienda (sin productos).
  *
  * Idempotente: crea las que faltan y deja como están las que ya existen.
- * Va DESPUÉS de `pnpm db:seed:clean -- --apply`: esa limpieza borra las
- * categorías vacías del seed de prueba, incluida la vieja `jeans`.
+ * Independiente del seed de demo (que usa categorías `demo-*` propias);
+ * `db:seed:clean` no toca estas categorías.
  *
  * Uso:  pnpm db:seed:categories
  */

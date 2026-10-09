@@ -1,7 +1,7 @@
 /**
- * Solo paths internos relativos (anti open-redirect). Rechaza `//` y `\` (los
- * navegadores normalizan backslash a slash, así que `/\evil.com` se
- * comportaría como `//evil.com` si el origin no antecediera).
+ * Solo paths internos relativos (anti open-redirect). Rechaza caracteres de
+ * control (tab/CR/LF que los navegadores descartan: `/\t/evil.com` terminaría
+ * como `//evil.com`), backslash (se normaliza a slash) y `//`.
  */
 export function sanitizeNext(
   next: string | null | undefined,
@@ -11,7 +11,8 @@ export function sanitizeNext(
     next &&
     next.startsWith("/") &&
     !next.startsWith("//") &&
-    !next.includes("\\")
+    // eslint-disable-next-line no-control-regex
+    !/[\x00-\x1F\x7F\\]/.test(next)
   ) {
     return next;
   }
