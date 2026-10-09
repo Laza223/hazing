@@ -8,6 +8,8 @@ export interface WebhookDecisionInput {
   currentOrderStatus: OrderStatus;
   mpStatus: PaymentStatus;
   hasCoupon: boolean;
+  /** Existe otro Payment `approved` del pedido distinto del que disparó el webhook. */
+  otherApprovedPaymentExists?: boolean;
 }
 export interface WebhookEffects {
   updatePaymentTo: PaymentStatus;
@@ -48,8 +50,14 @@ export function decideWebhookEffects(
 ): WebhookEffects {
   const { currentOrderStatus, mpStatus, hasCoupon } = input;
   const target = orderStatusForPayment(mpStatus);
+  // Un cancelled/refunded de un intento que NO es el pago aprobado no debe tocar el pedido.
+  const staleReversal =
+    (target === "cancelled" || target === "refunded") &&
+    input.otherApprovedPaymentExists === true;
   const willTransition =
-    target !== null && canTransition(currentOrderStatus, target);
+    target !== null &&
+    !staleReversal &&
+    canTransition(currentOrderStatus, target);
   const becomingPaid = willTransition && target === "paid";
 
   return {

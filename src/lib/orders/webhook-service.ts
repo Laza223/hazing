@@ -30,6 +30,11 @@ export interface WebhookDb {
   order: {
     findFirst: (args: Record<string, unknown>) => Promise<WebhookOrder | null>;
   };
+  payment: {
+    findFirst: (
+      args: Record<string, unknown>,
+    ) => Promise<{ id: string } | null>;
+  };
   $transaction: <T>(
     fn: (tx: PrismaTransactionClient) => Promise<T>,
   ) => Promise<T>;
@@ -139,11 +144,21 @@ export async function processWebhook(
   });
   if (!order) return { status: 200, detail: "Pedido inexistente (ack)." };
 
-  // 4. Decidir efectos (idempotente por Order.status).
+  // 4. Decidir efectos (idempotente por Order.status). Si otro intento del pedido ya está
+  // aprobado, un cancelled/refunded de ESTE pago no debe revertir el pedido.
+  const otherApproved = await deps.db.payment.findFirst({
+    where: {
+      orderId: order.id,
+      status: "approved",
+      mpPaymentId: { not: String(mpPayment.id) },
+    },
+    select: { id: true },
+  });
   const effects = decideWebhookEffects({
     currentOrderStatus: order.status,
     mpStatus: paymentStatus,
     hasCoupon: Boolean(order.couponId),
+    otherApprovedPaymentExists: otherApproved != null,
   });
 
   let oversoldLines: Array<{ name: string }> = [];

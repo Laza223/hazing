@@ -88,6 +88,11 @@ function makeFakeDb(opts: FakeDbOpts = {}) {
           state.payments.find(
             (p) =>
               p.orderId === where.orderId &&
+              (where.status ? p.status === where.status : true) &&
+              (where.mpPaymentId?.not !== undefined
+                ? p.mpPaymentId !== null &&
+                  p.mpPaymentId !== where.mpPaymentId.not
+                : true) &&
               (where.OR
                 ? where.OR.some(
                     (c: any) =>
@@ -411,6 +416,65 @@ describe("processWebhook", () => {
     );
     expect(r.status).toBe(200);
     expect(state.payments[0].status).toBe("approved"); // no retrocedió a in_process
+  });
+
+  const paidWithApprovedA = (state: any) => {
+    state.order.status = "paid";
+    state.payments = [
+      {
+        id: "pay-a",
+        orderId: "ord-1",
+        mpPaymentId: "mp-A",
+        status: "approved",
+        amount: 8260,
+      },
+      {
+        id: "pay-b",
+        orderId: "ord-1",
+        mpPaymentId: null,
+        status: "pending",
+        amount: 8260,
+      },
+    ];
+  };
+  const hook = (db: any, id: string, status: string) =>
+    processWebhook(
+      { dataId: id, xSignature: "ok", xRequestId: "r" },
+      makeDeps({
+        db,
+        getPayment: vi.fn(async () => ({
+          id,
+          status,
+          external_reference: "ord-1",
+        })),
+      }),
+    );
+
+  it("pedido paid con A approved + webhook de B cancelled → pedido sigue paid, Payment B cancelled", async () => {
+    const { db, state } = makeFakeDb();
+    paidWithApprovedA(state);
+    const r = await hook(db, "mp-B", "cancelled");
+    expect(r.status).toBe(200);
+    expect(state.order.status).toBe("paid");
+    expect(state.payments[0].status).toBe("approved");
+    expect(state.payments[1].mpPaymentId).toBe("mp-B");
+    expect(state.payments[1].status).toBe("cancelled");
+  });
+
+  it("pedido paid con A approved + webhook de A refunded → pedido refunded", async () => {
+    const { db, state } = makeFakeDb();
+    paidWithApprovedA(state);
+    const r = await hook(db, "mp-A", "refunded");
+    expect(r.status).toBe(200);
+    expect(state.order.status).toBe("refunded");
+    expect(state.payments[0].status).toBe("refunded");
+  });
+
+  it("pedido pending_payment sin otros approved + webhook cancelled → cancelled", async () => {
+    const { db, state } = makeFakeDb();
+    const r = await hook(db, "mp-B", "cancelled");
+    expect(r.status).toBe(200);
+    expect(state.order.status).toBe("cancelled");
   });
 
   it("pedido inexistente → 200 (ack)", async () => {
