@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import {
   createCheckout,
+  CouponRejectedError,
   type CreateCheckoutDeps,
   type CheckoutDb,
 } from "@/lib/orders/checkout-service";
@@ -53,6 +54,7 @@ function makeDeps(redemptions: number): {
         redemptions > 0 ? { redeemedCount: redemptions } : null,
       ),
     },
+    order: { count: vi.fn(async () => 0) },
     $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
       fn({
         order: { create: createOrder },
@@ -84,9 +86,9 @@ function makeDeps(redemptions: number): {
 }
 
 describe("createCheckout — perCustomerLimit", () => {
-  it("NO aplica el cupón si la clienta superó su límite (descuento 0)", async () => {
+  it("rechaza el pedido si la clienta superó su límite (no cobra sin descuento en silencio)", async () => {
     const { deps, createOrder } = makeDeps(1);
-    await createCheckout(
+    const attempt = createCheckout(
       {
         contactName: "Ana",
         contactEmail: "ana@x.com",
@@ -108,11 +110,8 @@ describe("createCheckout — perCustomerLimit", () => {
       },
       deps,
     );
-    expect(createOrder).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ discountTotal: 0, couponId: null }),
-      }),
-    );
+    await expect(attempt).rejects.toBeInstanceOf(CouponRejectedError);
+    expect(createOrder).not.toHaveBeenCalled();
   });
 
   it("aplica el cupón si está por debajo del límite", async () => {

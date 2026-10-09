@@ -70,6 +70,7 @@ interface Props {
   subtotal: number;
   discount: number;
   couponCode: string | null;
+  couponRejected?: { reason: string; permanent: boolean } | null;
   couponFreeShipping: boolean;
   items: ItemView[];
   defaultName?: string;
@@ -82,6 +83,7 @@ export function CheckoutForm({
   subtotal,
   discount,
   couponCode,
+  couponRejected = null,
   couponFreeShipping,
   items,
   defaultName = "",
@@ -478,7 +480,7 @@ export function CheckoutForm({
             </li>
           ))}
         </ul>
-        <CouponForm applied={couponCode} />
+        <CouponForm applied={couponCode} rejected={couponRejected} />
         <CartSummary
           subtotal={subtotal}
           discount={discount}

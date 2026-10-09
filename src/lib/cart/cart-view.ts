@@ -5,7 +5,8 @@ import { cartSubtotal, cartItemCount } from "@/lib/cart/totals";
 import { getCouponCodeFromCookie } from "@/lib/cart/cart-cookie";
 import { getFreeShippingThreshold } from "@/lib/orders/checkout-data";
 import { prisma } from "@/lib/prisma";
-import { validateCoupon, applyCoupon } from "@/lib/coupons/apply";
+import { evaluateCoupon, type CouponEvalDb } from "@/lib/coupons/evaluate";
+import { getCustomer } from "@/lib/customer/auth";
 import type { CartLine } from "@/lib/cart/types";
 
 export interface CartCouponPreview {
@@ -21,6 +22,8 @@ export interface CartView {
   /** null = sin umbral de envío gratis configurado todavía. */
   threshold: number | null;
   coupon: CartCouponPreview | null;
+  /** Por qué el cupón de la cookie no aplica (motivo en castellano); null si no hay. */
+  couponRejected: { reason: string; permanent: boolean } | null;
 }
 
 /** Vista del carrito de la sesión (deduplicada por request con React cache). */
@@ -30,24 +33,26 @@ export const getCartView = cache(async (): Promise<CartView> => {
   const threshold = await getFreeShippingThreshold();
 
   let coupon: CartCouponPreview | null = null;
+  let couponRejected: CartView["couponRejected"] = null;
   const code = await getCouponCodeFromCookie();
   if (code && lines.length > 0) {
-    const row = await prisma.coupon.findUnique({ where: { code } });
-    if (row) {
-      // Coerce Prisma Decimal fields to number/string para validateCoupon + applyCoupon.
-      const plain = {
-        ...row,
-        value: Number(row.value),
-        minSubtotal: row.minSubtotal != null ? Number(row.minSubtotal) : null,
+    // Misma evaluación que usa el server al crear el pedido. Las Server Components no pueden
+    // tocar cookies: si no aplica, `couponRejected` hace que el form limpie la cookie.
+    const customer = await getCustomer();
+    const ev = await evaluateCoupon(prisma as unknown as CouponEvalDb, {
+      code,
+      lines,
+      customerId: customer?.id,
+      contactEmail: customer?.email,
+    });
+    if (ev.ok) {
+      coupon = {
+        code,
+        discount: ev.discount,
+        freeShipping: ev.freeShipping,
       };
-      if (validateCoupon(plain, { subtotal, now: new Date() }).ok) {
-        const res = applyCoupon(plain, lines);
-        coupon = {
-          code,
-          discount: res.discount,
-          freeShipping: res.freeShipping,
-        };
-      }
+    } else {
+      couponRejected = { reason: ev.reason, permanent: ev.permanent };
     }
   }
   return {
@@ -57,5 +62,6 @@ export const getCartView = cache(async (): Promise<CartView> => {
     subtotal,
     threshold,
     coupon,
+    couponRejected,
   };
 });

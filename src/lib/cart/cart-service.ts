@@ -9,7 +9,16 @@ import type { CheckoutLineInput } from "@/lib/orders/checkout-service";
 export const CART_INCLUDE = {
   items: {
     include: {
-      variant: { include: { product: { include: { category: true } } } },
+      variant: {
+        include: {
+          product: {
+            include: {
+              category: true,
+              categories: { include: { category: true } },
+            },
+          },
+        },
+      },
     },
   },
 } satisfies Prisma.CartInclude;
@@ -18,6 +27,18 @@ export type CartWithItems = Prisma.CartGetPayload<{
   include: typeof CART_INCLUDE;
 }>;
 export type CartItemWithRefs = CartWithItems["items"][number];
+
+/** Ids de categoría con los que un cupón de categoría puede matchear un producto:
+ *  primaria, secundarias y el padre de cada una (jerarquía de 2 niveles). */
+function productCategoryIds(product: CartItemWithRefs["variant"]["product"]) {
+  const ids = new Set<string>([product.categoryId]);
+  if (product.category?.parentId) ids.add(product.category.parentId);
+  for (const link of product.categories ?? []) {
+    ids.add(link.categoryId);
+    if (link.category?.parentId) ids.add(link.category.parentId);
+  }
+  return [...ids];
+}
 
 /** Mapea un CartItem (con includes) a una CartLine pura para cálculos. */
 export function cartItemToCartLine(item: CartItemWithRefs): CartLine {
@@ -30,6 +51,7 @@ export function cartItemToCartLine(item: CartItemWithRefs): CartLine {
     qty: item.qty,
     productId: v.product.id,
     categoryId: v.product.categoryId,
+    categoryIds: productCategoryIds(v.product),
   };
 }
 

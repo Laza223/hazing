@@ -16,6 +16,8 @@ const m = vi.hoisted(() => ({
   createReview: vi.fn(),
   createRetractionRequest: vi.fn(),
   loadCurrentCart: vi.fn(),
+  loadCart: vi.fn(),
+  getCartIdFromCookie: vi.fn(),
 }));
 
 const LIMITED = { ok: false, error: "Demasiados intentos. Probá de nuevo." };
@@ -36,12 +38,18 @@ vi.mock("@/lib/legal/retraction/service", () => ({
 }));
 vi.mock("@/lib/cart/cart-service", () => ({
   loadCurrentCart: m.loadCurrentCart,
-  loadCart: vi.fn(),
+  loadCart: m.loadCart,
   createCart: vi.fn(),
   addItem: vi.fn(),
   updateItem: vi.fn(),
   removeItem: vi.fn(),
   cartToCheckoutLines: vi.fn(),
+}));
+vi.mock("@/lib/cart/cart-cookie", () => ({
+  getCartIdFromCookie: m.getCartIdFromCookie,
+  setCartIdCookie: vi.fn(),
+  getCouponCodeFromCookie: vi.fn(),
+  setCouponCodeCookie: vi.fn(),
 }));
 vi.mock("@/lib/orders/checkout-service", () => ({
   createCheckout: vi.fn(),
@@ -252,6 +260,8 @@ describe("cuando el limite deja pasar (null): la accion sigue", () => {
 
   it("applyCouponAction consulta el cupon", async () => {
     m.couponFindUnique.mockResolvedValue(null);
+    m.getCartIdFromCookie.mockResolvedValue(null);
+    m.loadCart.mockResolvedValue({ cart: null, lines: [] });
     expect(await store.applyCouponAction("PROMO")).toEqual({
       ok: false,
       error: "Cupón inexistente.",

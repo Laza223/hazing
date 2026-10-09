@@ -2,7 +2,7 @@ import { prisma, type PrismaTransactionClient } from "@/lib/prisma";
 import { round2 } from "@/lib/money";
 import { cartSubtotal } from "@/lib/cart/totals";
 import { lineTotal } from "@/lib/cart/totals";
-import { validateCoupon, applyCoupon } from "@/lib/coupons/apply";
+import { evaluateCoupon, type CouponEvalDb } from "@/lib/coupons/evaluate";
 import { formatOrderNumber } from "@/lib/orders/order-number";
 import { createPreference as realCreatePreference } from "@/lib/payments/mercadopago";
 import {
@@ -40,35 +40,8 @@ export interface CreateCheckoutInput {
   cartId?: string | null;
 }
 
-/** Interfaz mínima de coupon row necesaria para validar y aplicar. */
-export interface CouponRow {
-  id: string;
-  code: string;
-  type: "percentage" | "fixed" | "free_shipping";
-  value: number | string;
-  scope: "all" | "category" | "product";
-  scopeId: string | null;
-  active: boolean;
-  minSubtotal: number | string | null;
-  validFrom: Date | null;
-  validTo: Date | null;
-  maxUses: number | null;
-  usedCount: number;
-  perCustomerLimit: number | null;
-}
-
 /** Superficie mínima de DB que necesita el servicio (para inyectar fakes en tests). */
-export interface CheckoutDb {
-  coupon: {
-    findUnique: (args: {
-      where: { code: string };
-    }) => Promise<CouponRow | null>;
-  };
-  couponRedemption: {
-    findUnique: (args: {
-      where: { customerId_couponId: { customerId: string; couponId: string } };
-    }) => Promise<{ redeemedCount: number } | null>;
-  };
+export interface CheckoutDb extends CouponEvalDb {
   $transaction: <T>(
     fn: (tx: PrismaTransactionClient) => Promise<T>,
   ) => Promise<T>;
@@ -105,6 +78,14 @@ export class PaymentProviderError extends Error {
   }
 }
 
+/** El cupón del carrito ya no aplica al crear el pedido. `message` es apto para la clienta. */
+export class CouponRejectedError extends Error {
+  constructor(reason: string) {
+    super(reason);
+    this.name = "CouponRejectedError";
+  }
+}
+
 /** Lee la secuencia order_number_seq dentro de la tx (default real). */
 async function defaultNextOrderSeq(
   tx: PrismaTransactionClient,
@@ -135,37 +116,6 @@ export async function createCheckout(
   const cartLines = input.lines.map((l) => l.line);
   const subtotal = cartSubtotal(cartLines);
 
-  // --- Cupón (revalidado en server) ---
-  let discount = 0;
-  let freeShippingByCoupon = false;
-  let couponId: string | null = null;
-  if (input.couponCode) {
-    const coupon = await deps.db.coupon.findUnique({
-      where: { code: input.couponCode },
-    });
-    if (coupon) {
-      let customerRedemptions = 0;
-      if (input.customerId && coupon.perCustomerLimit != null) {
-        const r = await deps.db.couponRedemption.findUnique({
-          where: {
-            customerId_couponId: {
-              customerId: input.customerId,
-              couponId: coupon.id,
-            },
-          },
-        });
-        customerRedemptions = r?.redeemedCount ?? 0;
-      }
-      const v = validateCoupon(coupon, { subtotal, now, customerRedemptions });
-      if (v.ok) {
-        const res = applyCoupon(coupon, cartLines);
-        discount = res.discount;
-        freeShippingByCoupon = res.freeShipping;
-        couponId = coupon.id;
-      }
-    }
-  }
-
   // --- Envío: SIEMPRE recalculado en server con el método elegido (ver src/lib/shipping/quote.ts) ---
   const quote = await deps.quoteShipping({
     method: input.shippingMethod,
@@ -174,6 +124,31 @@ export async function createCheckout(
     subtotal,
     units: cartLines.reduce((n, l) => n + l.qty, 0),
   });
+
+  // --- Cupón (misma evaluación que el carrito). Si no aplica se corta: nunca cobrar
+  // distinto de lo que la clienta vio. ---
+  let discount = 0;
+  let freeShippingByCoupon = false;
+  let couponId: string | null = null;
+  if (input.couponCode) {
+    const ev = await evaluateCoupon(deps.db, {
+      code: input.couponCode,
+      lines: cartLines,
+      customerId: input.customerId,
+      contactEmail: input.contactEmail,
+      shippingCost: quote.cost,
+      now,
+    });
+    // Rechazo transitorio (mínimo, categoría, total $0): el carrito ya lo muestra sin
+    // descuento, así que se cobra sin cupón. Solo los permanentes cortan el checkout.
+    if (!ev.ok && ev.permanent) throw new CouponRejectedError(ev.reason);
+    // Sin beneficio (envío gratis con envío ya en $0): se ignora, no consume el uso.
+    if (ev.ok && !ev.noBenefit) {
+      discount = ev.discount;
+      freeShippingByCoupon = ev.freeShipping;
+      couponId = ev.couponId;
+    }
+  }
   const shippingCost = freeShippingByCoupon ? 0 : quote.cost;
   const total = round2(subtotal - discount + shippingCost);
 

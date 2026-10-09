@@ -17,4 +17,6 @@ export interface CartLine {
   /** Metadata para cupones scope product/category. */
   productId?: string | null;
   categoryId?: string | null;
+  /** Primaria, su padre, y las secundarias (con sus padres): para cupones scope category. */
+  categoryIds?: string[];
 }

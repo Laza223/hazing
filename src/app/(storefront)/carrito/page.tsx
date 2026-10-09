@@ -21,7 +21,8 @@ export const metadata: Metadata = { title: "Tu carrito" };
  * "Finalizar compra" lleva a `/checkout` (Fase 8).
  */
 export default async function CarritoPage() {
-  const { cart, subtotal, count, threshold, coupon } = await getCartView();
+  const { cart, subtotal, count, threshold, coupon, couponRejected } =
+    await getCartView();
 
   if (!cart || count === 0) {
     return (
@@ -66,7 +67,10 @@ export default async function CarritoPage() {
 
         <aside className="space-y-6 lg:col-span-5">
           <FreeShippingLine subtotal={subtotal} threshold={threshold} />
-          <CouponForm applied={coupon?.code ?? null} />
+          <CouponForm
+            applied={coupon?.code ?? null}
+            rejected={couponRejected}
+          />
           <CartSummary subtotal={subtotal} discount={discount} total={total} />
           <Link href="/checkout" className={cn(buttonVariants(), "w-full")}>
             Finalizar compra

@@ -20,8 +20,7 @@ import {
   setCouponCodeCookie,
 } from "@/lib/cart/cart-cookie";
 import { cartSubtotal } from "@/lib/cart/totals";
-import { validateCoupon, applyCoupon } from "@/lib/coupons/apply";
-import { toNumber } from "@/lib/catalog/pricing";
+import { evaluateCoupon, type CouponEvalDb } from "@/lib/coupons/evaluate";
 import { prisma } from "@/lib/prisma";
 import { getCustomer } from "@/lib/customer/auth";
 import { quoteShipping } from "@/lib/shipping/quote";
@@ -30,6 +29,7 @@ import { shippingQuoteDeps } from "@/lib/orders/checkout-data";
 import {
   createCheckout,
   defaultCheckoutDeps,
+  CouponRejectedError,
   PaymentProviderError,
 } from "@/lib/orders/checkout-service";
 import {
@@ -167,49 +167,17 @@ export async function applyCouponAction(code: string): Promise<ActionResult> {
   if (limited) return limited;
   const normalized = code.trim().toUpperCase();
   if (!normalized) return { ok: false, error: "Ingresá un código." };
-  const coupon = await prisma.coupon.findUnique({
-    where: { code: normalized },
-  });
-  if (!coupon) return { ok: false, error: "Cupón inexistente." };
   const cartId = await getCartIdFromCookie();
   const { lines } = await loadCart(cartId);
-  const subtotal = cartSubtotal(lines);
-  // Límite de uso por clienta: con sesión, cuenta los canjes previos de
-  // CouponRedemption; invitada sigue sin historial (0).
+  // Misma evaluación que el carrito y el checkout (incluye usos pendientes y límite por clienta).
   const customer = await getCustomer();
-  const customerRedemptions = customer
-    ? ((
-        await prisma.couponRedemption.findUnique({
-          where: {
-            customerId_couponId: {
-              customerId: customer.id,
-              couponId: coupon.id,
-            },
-          },
-          select: { redeemedCount: true },
-        })
-      )?.redeemedCount ?? 0)
-    : 0;
-  const validatable = {
-    ...coupon,
-    minSubtotal:
-      coupon.minSubtotal != null ? toNumber(coupon.minSubtotal) : null,
-  };
-  const v = validateCoupon(validatable, {
-    subtotal,
-    now: new Date(),
-    customerRedemptions,
+  const ev = await evaluateCoupon(prisma as unknown as CouponEvalDb, {
+    code: normalized,
+    lines,
+    customerId: customer?.id,
+    contactEmail: customer?.email,
   });
-  if (!v.ok) return { ok: false, error: v.reason };
-  // No "aplicar" un cupón con scope a producto/categoría que no rinde descuento sobre este carrito.
-  const applicable = { ...coupon, value: toNumber(coupon.value) };
-  const effect = applyCoupon(applicable, lines);
-  if (effect.discount === 0 && !effect.freeShipping) {
-    return {
-      ok: false,
-      error: "El cupón no aplica a los productos de tu carrito.",
-    };
-  }
+  if (!ev.ok) return { ok: false, error: ev.reason };
   await setCouponCodeCookie(normalized);
   revalidatePath("/carrito");
   return { ok: true };
@@ -367,6 +335,16 @@ export async function createCheckoutAction(input: {
     // el detalle técnico queda en `cause` (logueado arriba).
     if (e instanceof PaymentProviderError)
       return { ok: false, error: e.message };
+    // El cupón dejó de aplicar: se limpia para que el carrito muestre el total real.
+    if (e instanceof CouponRejectedError) {
+      // Siempre se limpia acá: con la cookie viva el próximo intento fallaría igual.
+      await setCouponCodeCookie(null);
+      revalidatePath("/carrito");
+      return {
+        ok: false,
+        error: `${e.message} Sacamos el cupón; revisá el total y confirmá de nuevo.`,
+      };
+    }
     // AbortSignal.timeout() tira un DOMException técnico en inglés — no mostrárselo a la clienta.
     if (
       e instanceof DOMException &&

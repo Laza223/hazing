@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import {
   createCheckout,
   PaymentProviderError,
+  CouponRejectedError,
   type CreateCheckoutDeps,
   type CheckoutLineInput,
 } from "@/lib/orders/checkout-service";
@@ -188,6 +189,37 @@ describe("createCheckout", () => {
     expect(orderData.total).toBe(6400); // envío gratis: 6400 + 0
   });
 
+  it("cupón free_shipping con envío ya gratis (sobre el umbral): crea el pedido sin couponId y sin error", async () => {
+    const { deps } = makeDeps({
+      quoteShipping: vi.fn(async () => ({
+        cost: 0,
+        zoneId: "z-amba",
+        freeShipping: true,
+        source: "zone" as const,
+      })),
+    });
+    (deps.db.coupon.findUnique as any) = vi.fn(async () => ({
+      id: "co-2",
+      code: "ENVIOGRATIS",
+      type: "free_shipping",
+      value: 0,
+      scope: "all",
+      scopeId: null,
+      active: true,
+      minSubtotal: null,
+      validFrom: null,
+      validTo: null,
+      maxUses: null,
+      usedCount: 0,
+      perCustomerLimit: null,
+    }));
+    await createCheckout({ ...baseInput, couponCode: "ENVIOGRATIS" }, deps);
+    const orderData = (deps as any)._tx.order.create.mock.calls[0][0].data;
+    expect(orderData.couponId).toBeNull();
+    expect(orderData.discountTotal).toBe(0);
+    expect(orderData.total).toBe(6400);
+  });
+
   it("rechaza carrito vacío", async () => {
     const { deps } = makeDeps();
     await expect(
@@ -195,16 +227,59 @@ describe("createCheckout", () => {
     ).rejects.toThrow();
   });
 
-  it("ignora cupón inválido (no aplica descuento) sin romper", async () => {
+  it("rechaza un cupón que ya no aplica (no cobra distinto de lo mostrado) y no crea pedido", async () => {
     const { deps } = makeDeps();
-    const r = await createCheckout(
-      { ...baseInput, couponCode: "NOEXISTE" },
-      deps,
-    );
+    await expect(
+      createCheckout({ ...baseInput, couponCode: "NOEXISTE" }, deps),
+    ).rejects.toBeInstanceOf(CouponRejectedError);
+    expect((deps as any)._tx.order.create).not.toHaveBeenCalled();
+  });
+
+  it("cupón bajo el mínimo (rechazo transitorio): pedido creado sin cupón y sin error", async () => {
+    const { deps } = makeDeps();
+    (deps.db.coupon.findUnique as any) = vi.fn(async () => ({
+      id: "co-3",
+      code: "MINIMO",
+      type: "percentage",
+      value: 10,
+      scope: "all",
+      scopeId: null,
+      active: true,
+      minSubtotal: 999999,
+      validFrom: null,
+      validTo: null,
+      maxUses: null,
+      usedCount: 0,
+      perCustomerLimit: null,
+    }));
+    await createCheckout({ ...baseInput, couponCode: "MINIMO" }, deps);
     const orderData = (deps as any)._tx.order.create.mock.calls[0][0].data;
-    expect(orderData.discountTotal).toBe(0);
     expect(orderData.couponId).toBeNull();
-    expect(r.orderNumber).toBe("HZG-000001");
+    expect(orderData.discountTotal).toBe(0);
+    expect(orderData.total).toBe(8900);
+  });
+
+  it("cupón vencido (rechazo permanente): lanza CouponRejectedError y no crea pedido", async () => {
+    const { deps } = makeDeps();
+    (deps.db.coupon.findUnique as any) = vi.fn(async () => ({
+      id: "co-4",
+      code: "VIEJO",
+      type: "percentage",
+      value: 10,
+      scope: "all",
+      scopeId: null,
+      active: true,
+      minSubtotal: null,
+      validFrom: null,
+      validTo: new Date("2026-01-01T00:00:00Z"),
+      maxUses: null,
+      usedCount: 0,
+      perCustomerLimit: null,
+    }));
+    await expect(
+      createCheckout({ ...baseInput, couponCode: "VIEJO" }, deps),
+    ).rejects.toBeInstanceOf(CouponRejectedError);
+    expect((deps as any)._tx.order.create).not.toHaveBeenCalled();
   });
 
   it("los ítems de la preference MP suman exactamente el total (con envío, sin cupón)", async () => {

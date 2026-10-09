@@ -134,3 +134,22 @@ describe("applyCoupon", () => {
     ).toEqual({ discount: 1000, freeShipping: false });
   });
 });
+
+describe("applyCoupon - scope category con categoryIds (K4)", () => {
+  const cat = (scopeId: string): ApplicableCoupon => ({
+    type: "percentage",
+    value: 10,
+    scope: "category",
+    scopeId,
+  });
+  const sub = line({ categoryId: "sub", categoryIds: ["sub", "padre", "sec"] });
+
+  it("aplica por categoria primaria, padre y secundaria", () => {
+    expect(applyCoupon(cat("sub"), [sub]).discount).toBe(100);
+    expect(applyCoupon(cat("padre"), [sub]).discount).toBe(100);
+    expect(applyCoupon(cat("sec"), [sub]).discount).toBe(100);
+  });
+  it("no aplica a una categoria ajena", () => {
+    expect(applyCoupon(cat("otra"), [sub]).discount).toBe(0);
+  });
+});

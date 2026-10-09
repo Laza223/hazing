@@ -47,3 +47,25 @@ describe("cartItemToCartLine", () => {
     expect(l.unitPrice).toBe(2990);
   });
 });
+
+describe("cartItemToCartLine - categoryIds (K4)", () => {
+  it("incluye primaria, su padre, secundarias y el padre de estas", () => {
+    const item = {
+      ...variantItem,
+      variant: {
+        ...variantItem.variant,
+        product: {
+          ...variantItem.variant.product,
+          category: { id: "c1", parentId: "p0" },
+          categories: [
+            { categoryId: "c2", category: { id: "c2", parentId: "p9" } },
+            { categoryId: "c3", category: { id: "c3", parentId: null } },
+          ],
+        },
+      },
+    } as unknown as CartItemWithRefs;
+    expect(cartItemToCartLine(item).categoryIds?.sort()).toEqual(
+      ["c1", "c2", "c3", "p0", "p9"].sort(),
+    );
+  });
+});

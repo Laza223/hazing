@@ -61,7 +61,10 @@ function matchesScope(
   scopeId: string | null,
 ): boolean {
   if (scope === "all") return true;
-  if (scope === "category") return line.categoryId === scopeId;
+  if (scope === "category")
+    return line.categoryIds
+      ? scopeId != null && line.categoryIds.includes(scopeId)
+      : line.categoryId === scopeId;
   if (scope === "product") return line.productId === scopeId;
   return false;
 }

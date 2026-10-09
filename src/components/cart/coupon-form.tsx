@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { TextInput } from "@/components/ui/text-input";
@@ -10,11 +10,29 @@ import {
   removeCouponAction,
 } from "@/app/(storefront)/actions";
 
-export function CouponForm({ applied }: { applied: string | null }) {
+export function CouponForm({
+  applied,
+  rejected = null,
+}: {
+  applied: string | null;
+  /** Por qué el cupón de la cookie no aplica: se muestra el motivo; la cookie se limpia solo si es permanente. */
+  rejected?: { reason: string; permanent: boolean } | null;
+}) {
   const router = useRouter();
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [rejectedNotice, setRejectedNotice] = useState(
+    rejected?.reason ?? null,
+  );
+
+  const rejectedReason = rejected?.reason ?? null;
+  const rejectedPermanent = rejected?.permanent ?? false;
+  useEffect(() => {
+    if (!rejectedReason) return;
+    setRejectedNotice(rejectedReason);
+    if (rejectedPermanent) void removeCouponAction();
+  }, [rejectedReason, rejectedPermanent]);
 
   const apply = () =>
     startTransition(async () => {
@@ -73,7 +91,9 @@ export function CouponForm({ applied }: { applied: string | null }) {
           Aplicar
         </Button>
       </div>
-      {error && <p className="text-sm text-ink-3">{error}</p>}
+      {(error ?? rejectedNotice) && (
+        <p className="text-sm text-ink-3">{error ?? rejectedNotice}</p>
+      )}
     </div>
   );
 }

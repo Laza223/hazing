@@ -16,7 +16,7 @@ export const metadata: Metadata = { title: "Checkout" };
  * sin cuenta asociada.
  */
 export default async function CheckoutPage() {
-  const { cart, count, subtotal, coupon } = await getCartView();
+  const { cart, count, subtotal, coupon, couponRejected } = await getCartView();
   if (!cart || count === 0) redirect("/carrito");
 
   const customer = await getCustomer();
@@ -39,6 +39,7 @@ export default async function CheckoutPage() {
         subtotal={subtotal}
         discount={coupon?.discount ?? 0}
         couponCode={coupon?.code ?? null}
+        couponRejected={couponRejected}
         couponFreeShipping={coupon?.freeShipping ?? false}
         defaultName={customer?.name ?? ""}
         defaultEmail={customer?.email ?? ""}
