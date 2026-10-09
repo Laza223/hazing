@@ -45,7 +45,7 @@ Patrón: **Next.js App Router + servicios desacoplados en `src/lib/*`**. La lóg
 - `src/app/admin/*` — Panel admin: `/admin/login`, `/admin/(panel)` (`/pedidos`, `/productos`, `/categorias`, `/cupones`, `/resenas`).
 - `src/app/api/*` — Route Handlers exclusivamente para webhooks (`/api/webhooks/mercadopago`), el cron (`/api/cron`), callbacks de auth, sitemap/robots.
 - `src/lib/*` — Dominios: `orders/`, `payments/`, `cart/`, `catalog/`, `admin/`, `coupons/`, `email/`, `supabase/`, `prisma.ts`. `shipping/` se porta de glamify (`index.ts`, `micorreo.ts`, `quote.ts`, `tracking.ts`; ADR 0004) — hoy solo existe un `quote.ts` por zonas. NO se portan `zipnova.ts`, `correo.ts` ni `orders/auto-shipment.ts`. `customer/` y `reviews/` todavía no existen — se agregan cuando haga falta esa funcionalidad (Fase 6/7).
-- **Guards y Auth:** Staff vía Supabase Auth → tabla `User` (`role = 'owner' | 'admin'`), `requireAdmin()` en layouts y Server Actions. Clientas vía Supabase Auth (email) → `Customer`. Compras de invitadas guardan contacto/dirección en `Order`.
+- **Guards y Auth:** Staff vía Supabase Auth → tabla `User` (`role = 'owner' | 'admin'`), `requireAdmin()` en cada page del panel, en Server Actions y en el layout (el layout solo NO alcanza en Next 15 por partial rendering). Clientas vía Supabase Auth (email) → `Customer`. Compras de invitadas guardan contacto/dirección en `Order`.
 
 ## Invariantes de dominio
 

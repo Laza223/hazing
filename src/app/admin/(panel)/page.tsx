@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/admin/auth";
 import Link from "next/link";
 import {
   PackageCheck,
@@ -55,6 +56,7 @@ function Row({
 }
 
 export default async function AdminHomePage() {
+  await requireAdmin();
   const data = await getActionData();
 
   const total =

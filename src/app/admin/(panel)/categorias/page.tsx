@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/admin/auth";
 import Link from "next/link";
 import {
   Plus,
@@ -67,6 +68,7 @@ async function loadCategories(): Promise<CategoryNode[]> {
 }
 
 export default async function CategoriasPage() {
+  await requireAdmin();
   const all = await loadCategories();
   const roots = all.filter((c) => c.parentId === null);
   const childrenOf = (id: string) => all.filter((c) => c.parentId === id);

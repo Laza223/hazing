@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/admin/auth";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/admin/page-header";
 import { CouponForm } from "@/app/admin/(panel)/cupones/coupon-form";
@@ -5,6 +6,7 @@ import { CouponForm } from "@/app/admin/(panel)/cupones/coupon-form";
 export const dynamic = "force-dynamic";
 
 export default async function NuevoCuponPage() {
+  await requireAdmin();
   const [categories, products] = await Promise.all([
     prisma.category.findMany({
       where: { active: true },

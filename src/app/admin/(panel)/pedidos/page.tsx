@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/admin/auth";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { prisma } from "@/lib/prisma";
@@ -48,6 +49,7 @@ export default async function PedidosPage({
 }: {
   searchParams: Promise<{ estado?: string; q?: string }>;
 }) {
+  await requireAdmin();
   const sp = await searchParams;
   const q = sp.q?.trim() ?? "";
   const estado = sp.estado;

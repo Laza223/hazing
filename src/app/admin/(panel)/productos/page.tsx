@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/admin/auth";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -45,6 +46,7 @@ export default async function ProductosPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
+  await requireAdmin();
   const sp = await searchParams;
   const q = (sp.q ?? "").trim();
   const categoriaId = (sp.categoria ?? "").trim();

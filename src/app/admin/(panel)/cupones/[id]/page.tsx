@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/admin/auth";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/catalog/pricing";
@@ -26,6 +27,7 @@ export default async function EditarCuponPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireAdmin();
   const { id } = await params;
   const [coupon, categories, products] = await Promise.all([
     prisma.coupon.findUnique({ where: { id } }),

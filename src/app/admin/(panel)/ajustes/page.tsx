@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/admin/auth";
 import { PageHeader } from "@/components/admin/page-header";
 import { SettingsForm } from "./settings-form";
 import { prisma } from "@/lib/prisma";
@@ -9,6 +10,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function AdminAjustesPage() {
+  await requireAdmin();
   const setting = await prisma.setting.findUnique({ where: { id: "default" } });
   const shippingPrice = await getNationwideShippingPrice(
     prisma as unknown as NationwideZoneDb,

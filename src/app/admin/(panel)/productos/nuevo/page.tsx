@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/admin/auth";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/admin/page-header";
 import {
@@ -9,6 +10,7 @@ import { productImagesPublicBase } from "@/lib/images";
 export const dynamic = "force-dynamic";
 
 export default async function NuevoProductoPage() {
+  await requireAdmin();
   const categories = await prisma.category.findMany({
     where: { active: true },
     orderBy: [{ order: "asc" }, { name: "asc" }],

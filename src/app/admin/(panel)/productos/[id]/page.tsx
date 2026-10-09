@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/admin/auth";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/catalog/pricing";
@@ -17,6 +18,7 @@ export default async function EditarProductoPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireAdmin();
   const { id } = await params;
   const [product, categories] = await Promise.all([
     prisma.product.findFirst({

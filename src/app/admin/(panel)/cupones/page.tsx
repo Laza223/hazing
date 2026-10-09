@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/admin/auth";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/catalog/pricing";
@@ -45,6 +46,7 @@ function dateLabel(d: Date | null): string {
 }
 
 export default async function CuponesPage() {
+  await requireAdmin();
   const coupons = await prisma.coupon.findMany({ orderBy: { code: "asc" } });
 
   return (

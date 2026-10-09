@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/admin/auth";
 import {
   DollarSign,
   CalendarRange,
@@ -37,6 +38,7 @@ function changeText(pct: number | null): string {
 }
 
 export default async function AdminMetricsPage() {
+  await requireAdmin();
   const data = await getDashboardData();
   const maxFunnel = Math.max(1, ...Object.values(data.statusFunnelMonth));
 

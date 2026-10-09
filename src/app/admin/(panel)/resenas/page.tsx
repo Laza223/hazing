@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/admin/auth";
 import Link from "next/link";
 import Image from "next/image";
 import { Star, MessageSquareQuote, User, CalendarDays } from "lucide-react";
@@ -119,6 +120,7 @@ function ReviewSection({
 }
 
 export default async function ResenasPage() {
+  await requireAdmin();
   const [pending, approved, rejected] = await Promise.all([
     listReviewsByStatus("pending"),
     listReviewsByStatus("approved"),

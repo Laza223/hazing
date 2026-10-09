@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/admin/auth";
 import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -82,6 +83,7 @@ export default async function PedidoDetallePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireAdmin();
   const { id } = await params;
   const order = await prisma.order.findUnique({
     where: { id },

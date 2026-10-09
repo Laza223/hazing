@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/admin/auth";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/admin/page-header";
 import {
@@ -16,6 +17,7 @@ async function loadRootParents(): Promise<ParentOption[]> {
 }
 
 export default async function NuevaCategoriaPage() {
+  await requireAdmin();
   const parents = await loadRootParents();
   return (
     <div className="space-y-6">
