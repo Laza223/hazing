@@ -195,7 +195,20 @@ export async function quoteMicorreo(
   fetchImpl: typeof fetch = fetch,
   nowMs: number = Date.now(),
 ): Promise<LiveQuote | null> {
-  if (!isMicorreoConfigured(env)) return null;
+  const isProd =
+    process.env.NODE_ENV === "production" ||
+    process.env.VERCEL_ENV === "production";
+  if (!isMicorreoConfigured(env)) {
+    if (isProd)
+      console.warn(
+        "[micorreo] sin credenciales configuradas: se usa el precio de respaldo",
+      );
+    return null;
+  }
+  if (isProd && env.MICORREO_SANDBOX === "1")
+    console.warn(
+      "[micorreo] MICORREO_SANDBOX activo en producción: se cotiza contra apitest",
+    );
   if (!input.cpDestino?.trim()) return null;
 
   try {

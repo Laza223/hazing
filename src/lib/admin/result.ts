@@ -7,4 +7,6 @@ export interface AdminResult {
   ok: boolean;
   error?: string;
   id?: string;
+  /** Solo despacho: `false` si el registro se guardó pero el mail a la clienta no salió. */
+  emailSent?: boolean;
 }

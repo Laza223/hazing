@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TextInput } from "@/components/ui/text-input";
-import { dispatchOrderAction } from "./actions";
+import { dispatchOrderAction, resendDispatchEmailAction } from "./actions";
 
 /** Carga manual del despacho: empresa, código y link libres (la dueña elige el courier). */
 export function DispatchForm({
@@ -24,11 +24,15 @@ export function DispatchForm({
   const [trackingUrl, setTrackingUrl] = useState(initial.trackingUrl);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [emailFailed, setEmailFailed] = useState(false);
+  const [resent, setResent] = useState(false);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSaved(false);
+    setEmailFailed(false);
+    setResent(false);
     startTransition(async () => {
       const r = await dispatchOrderAction(orderId, {
         carrier,
@@ -38,7 +42,20 @@ export function DispatchForm({
       if (!r.ok) setError(r.error ?? "No se pudo marcar como despachado.");
       else {
         setSaved(true);
+        setEmailFailed(r.emailSent === false);
         router.refresh();
+      }
+    });
+  };
+
+  const resend = () => {
+    setError(null);
+    startTransition(async () => {
+      const r = await resendDispatchEmailAction(orderId);
+      if (!r.ok) setError(r.error ?? "No se pudo reenviar el mail.");
+      else {
+        setEmailFailed(false);
+        setResent(true);
       }
     });
   };
@@ -81,8 +98,28 @@ export function DispatchForm({
       ) : null}
       {saved ? (
         <p role="status" className="text-sm text-ink-3">
-          Despacho guardado.
+          {emailFailed
+            ? "Despacho guardado, pero el mail a la clienta no salió."
+            : resent
+              ? "Despacho guardado. Mail reenviado a la clienta."
+              : "Despacho guardado."}
         </p>
+      ) : null}
+      {resent && !saved ? (
+        <p role="status" className="text-sm text-ink-3">
+          Mail reenviado a la clienta.
+        </p>
+      ) : null}
+      {emailFailed ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={resend}
+          disabled={pending}
+        >
+          Reenviar mail de despacho
+        </Button>
       ) : null}
       <Button type="submit" size="sm" disabled={pending}>
         {pending ? (

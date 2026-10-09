@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import {
   markOrderDispatched,
+  resendDispatchEmail,
   parseDispatchInput,
   type DispatchDeps,
   type DispatchOrder,
@@ -200,5 +201,50 @@ describe("shipmentDispatchedEmail", () => {
     expect(m.html).not.toContain("<b>Ana</b>");
     expect(m.html).not.toContain("Seguir mi envío");
     expect(m.text).not.toContain("Seguir mi envío");
+  });
+});
+
+describe("resendDispatchEmail", () => {
+  const shipped = {
+    status: "shipped" as const,
+    shipment: {
+      status: "dispatched" as const,
+      carrier: "Via Cargo",
+      trackingNumber: "VC123",
+      trackingUrl: null,
+    },
+  };
+
+  it("reenvía con los datos guardados del Shipment", async () => {
+    const { deps, sendEmail } = setup(shipped);
+    await expect(resendDispatchEmail("o1", deps)).resolves.toEqual({
+      id: "o1",
+    });
+    const mail = sendEmail.mock.calls[0][0];
+    expect(mail.to).toBe("ana@example.com");
+    expect(mail.html).toContain("Via Cargo");
+    expect(mail.html).toContain("VC123");
+  });
+
+  it("rechaza si el pedido no está enviado o no tiene despacho", async () => {
+    const a = setup({ status: "paid" });
+    await expect(resendDispatchEmail("o1", a.deps)).rejects.toThrow(
+      /despacho cargado/,
+    );
+    const b = setup({ status: "shipped", shipment: null });
+    await expect(resendDispatchEmail("o1", b.deps)).rejects.toThrow(
+      /despacho cargado/,
+    );
+    expect(a.sendEmail).not.toHaveBeenCalled();
+    expect(b.sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("si Resend falla, propaga el error", async () => {
+    const { deps, sendEmail } = setup(shipped);
+    sendEmail.mockRejectedValueOnce(new Error("resend down"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(resendDispatchEmail("o1", deps)).rejects.toThrow(
+      /No se pudo enviar el mail/,
+    );
   });
 });

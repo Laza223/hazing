@@ -112,13 +112,23 @@ export async function processWebhook(
   deps: ProcessWebhookDeps,
 ): Promise<ProcessWebhookResult> {
   // 1. Verificar firma (origen).
+  if (!deps.secret)
+    console.error(
+      "[webhook] MP_WEBHOOK_SECRET no configurado: todos los webhooks de MercadoPago se rechazan con 401",
+    );
   const valid = await deps.verifySignature({
     xSignature: input.xSignature,
     xRequestId: input.xRequestId,
     dataId: input.dataId,
     secret: deps.secret,
   });
-  if (!valid) return { status: 401, detail: "Firma inválida." };
+  if (!valid) {
+    if (deps.secret)
+      console.warn(
+        `[webhook] firma inválida (dataId ${input.dataId}): webhook rechazado`,
+      );
+    return { status: 401, detail: "Firma inválida." };
+  }
 
   // 2. Consultar el pago a MP (fuente de verdad).
   const mpPayment = await deps.getPayment(input.dataId);
@@ -280,9 +290,16 @@ export async function processWebhook(
   if (wonPaidTransition) {
     // Emails. Best-effort: el pago YA está confirmado en DB — un fallo de Resend acá no debe
     // voltear el webhook (si no, MP reintenta indefinidamente sobre un pago que ya es idempotente,
-    // en vez de cerrar con 200).
+    // en vez de cerrar con 200). Cada mail va en su propio try: si falla el de la clienta, el de
+    // la dueña (única señal de oversell / monto distinto) tiene que salir igual.
+    const logEmailFailure = (which: string, e: unknown) =>
+      console.error(
+        `[webhook] mail ${which} falló (pedido ${order.orderNumber}):`,
+        e instanceof Error ? e.message : String(e),
+      );
+    let emailData: OrderEmailData | null = null;
     try {
-      const emailData: OrderEmailData = {
+      emailData = {
         orderNumber: order.orderNumber,
         contactName: order.contactName,
         contactEmail: order.contactEmail,
@@ -304,35 +321,41 @@ export async function processWebhook(
         // Defensa: monto realmente acreditado por MP → la alerta a la dueña flaggea si no coincide con el total.
         amountPaid: mpPayment.transaction_amount ?? undefined,
       };
-      const customer = orderConfirmationEmail(emailData);
-      await deps.sendEmail({
-        to: order.contactEmail,
-        subject: customer.subject,
-        html: customer.html,
-        text: customer.text,
-      });
-      if (deps.ownerEmail) {
-        const owner = newOrderAlertEmail({
-          ...emailData,
-          oversoldLines: oversoldLines.length ? oversoldLines : undefined,
-        });
+    } catch (e) {
+      logEmailFailure("(datos)", e);
+    }
+    if (emailData) {
+      try {
+        const customer = orderConfirmationEmail(emailData);
         await deps.sendEmail({
-          to: deps.ownerEmail,
-          subject: owner.subject,
-          html: owner.html,
-          text: owner.text,
+          to: order.contactEmail,
+          subject: customer.subject,
+          html: customer.html,
+          text: customer.text,
         });
+      } catch (e) {
+        logEmailFailure("a la clienta", e);
+      }
+      if (deps.ownerEmail) {
+        try {
+          const owner = newOrderAlertEmail({
+            ...emailData,
+            oversoldLines: oversoldLines.length ? oversoldLines : undefined,
+          });
+          await deps.sendEmail({
+            to: deps.ownerEmail,
+            subject: owner.subject,
+            html: owner.html,
+            text: owner.text,
+          });
+        } catch (e) {
+          logEmailFailure("a la dueña", e);
+        }
       } else {
         console.error(
           `[webhook] RESEND_OWNER_EMAIL no configurada: la dueña no recibió el aviso del pedido ${order.orderNumber}`,
         );
       }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      console.error(
-        `[webhook] envío de emails falló (pedido ${order.orderNumber}):`,
-        msg,
-      );
     }
   }
 

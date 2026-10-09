@@ -9,6 +9,7 @@ import {
 } from "@/lib/admin/orders/service";
 import {
   markOrderDispatched,
+  resendDispatchEmail,
   defaultDispatchDeps,
   type DispatchInput,
 } from "@/lib/admin/orders/dispatch";
@@ -45,12 +46,30 @@ export async function dispatchOrderAction(
     const r = await markOrderDispatched(orderId, input, defaultDispatchDeps());
     revalidatePath("/admin/pedidos");
     revalidatePath(`/admin/pedidos/${orderId}`);
-    return { ok: true, id: r.id };
+    return { ok: true, id: r.id, emailSent: r.emailSent };
   } catch (e) {
     return {
       ok: false,
       error:
         e instanceof Error ? e.message : "No se pudo marcar como despachado.",
+    };
+  }
+}
+
+/** Reenvía a la clienta el mail de despacho con los datos ya guardados del Shipment. */
+export async function resendDispatchEmailAction(
+  orderId: string,
+): Promise<AdminResult> {
+  // Fuera del try: el redirect a /admin/login de requireAdmin no debe
+  // terminar como error "NEXT_REDIRECT".
+  await requireAdmin();
+  try {
+    const r = await resendDispatchEmail(orderId, defaultDispatchDeps());
+    return { ok: true, id: r.id };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "No se pudo reenviar el mail.",
     };
   }
 }

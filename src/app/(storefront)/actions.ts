@@ -258,7 +258,8 @@ export async function quoteShippingAction(input: {
           shippingQuoteDeps,
         );
         return [method, { cost: q.cost, free: q.cost === 0 }] as const;
-      } catch {
+      } catch (e) {
+        console.error(`[quoteShipping] falló la cotización (${method}):`, e);
         return [method, null] as const;
       }
     }),

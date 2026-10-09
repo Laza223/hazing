@@ -253,6 +253,50 @@ describe("processWebhook", () => {
     expect(state.order.status).toBe("paid");
   });
 
+  it("si falla el mail a la clienta, el de la dueña sale igual y se loguea con orderNumber", async () => {
+    const { db } = makeFakeDb();
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    const sendEmail = vi.fn(async (m: { to: string }) => {
+      if (m.to === "ana@example.com") throw new Error("Resend caído");
+      return { id: "e1", logged: false };
+    });
+    const deps = makeDeps({ db, sendEmail: sendEmail as any });
+    const r = await processWebhook(
+      { dataId: "mp-pay-1", xSignature: "ok", xRequestId: "r" },
+      deps,
+    );
+    expect(r.status).toBe(200);
+    expect(sendEmail.mock.calls.map((c) => c[0].to)).toContain(
+      "owner@test.com",
+    );
+    expect(err.mock.calls.flat().join(" ")).toContain("HZG-000009");
+    err.mockRestore();
+  });
+
+  it("MP_WEBHOOK_SECRET vacío → 401 y console.error claro; firma inválida → console.warn", async () => {
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const noSecret = makeDeps({
+      secret: "",
+      verifySignature: vi.fn(async () => false),
+    });
+    const r1 = await processWebhook(
+      { dataId: "mp-pay-1", xSignature: "x", xRequestId: "r" },
+      noSecret,
+    );
+    expect(r1.status).toBe(401);
+    expect(err.mock.calls.flat().join(" ")).toContain("MP_WEBHOOK_SECRET");
+    const badSig = makeDeps({ verifySignature: vi.fn(async () => false) });
+    await processWebhook(
+      { dataId: "mp-pay-1", xSignature: "x", xRequestId: "r" },
+      badSig,
+    );
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls.flat().join(" ")).not.toContain("x-signature");
+    err.mockRestore();
+    warn.mockRestore();
+  });
+
   it("idempotente: el mismo webhook 2× descuenta stock una sola vez y crea un solo Shipment", async () => {
     const { db, state } = makeFakeDb();
     const deps = makeDeps({ db });

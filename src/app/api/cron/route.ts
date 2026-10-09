@@ -52,19 +52,24 @@ export async function GET(request: Request): Promise<NextResponse> {
     if (r.status === "rejected") console.error("[cron]", r.reason);
 
   const [abandoned, expiry, rateLimits] = results;
-  return NextResponse.json({
-    ok: results.every((r) => r.status === "fulfilled"),
-    abandoned:
-      abandoned.status === "fulfilled"
-        ? abandoned.value
-        : { error: String(abandoned.reason) },
-    expiry:
-      expiry.status === "fulfilled"
-        ? expiry.value
-        : { error: String(expiry.reason) },
-    rateLimits:
-      rateLimits.status === "fulfilled"
-        ? rateLimits.value
-        : { error: String(rateLimits.reason) },
-  });
+  const ok = results.every((r) => r.status === "fulfilled");
+  // 500 si algún job rechazó: Vercel lo marca como corrida fallida (los demás jobs ya corrieron).
+  return NextResponse.json(
+    {
+      ok,
+      abandoned:
+        abandoned.status === "fulfilled"
+          ? abandoned.value
+          : { error: String(abandoned.reason) },
+      expiry:
+        expiry.status === "fulfilled"
+          ? expiry.value
+          : { error: String(expiry.reason) },
+      rateLimits:
+        rateLimits.status === "fulfilled"
+          ? rateLimits.value
+          : { error: String(rateLimits.reason) },
+    },
+    { status: ok ? 200 : 500 },
+  );
 }

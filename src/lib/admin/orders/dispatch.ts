@@ -27,7 +27,9 @@ export interface DispatchOrder {
   contactEmail: string;
   shipment: {
     status: ShipmentStatus;
+    carrier?: string | null;
     trackingNumber: string | null;
+    trackingUrl?: string | null;
   } | null;
 }
 
@@ -168,4 +170,39 @@ export async function markOrderDispatched(
     }
   }
   return { id: order.id, emailSent };
+}
+
+/**
+ * Reenvía el mail de despacho con los datos ya guardados del Shipment (cuando el primer envío
+ * falló). A diferencia del alta, acá el fallo de Resend SÍ se propaga: la dueña lo pidió a mano.
+ */
+export async function resendDispatchEmail(
+  orderId: string,
+  deps: DispatchDeps,
+): Promise<{ id: string }> {
+  const order = await deps.db.order.findUnique({
+    where: { id: orderId },
+    include: { shipment: true },
+  });
+  if (!order) throw new Error("El pedido no existe.");
+  const sh = order.shipment;
+  if (order.status !== "shipped" || !sh?.carrier || !sh.trackingNumber)
+    throw new Error("El pedido no tiene un despacho cargado para reenviar.");
+  const content = shipmentDispatchedEmail({
+    orderNumber: order.orderNumber,
+    contactName: order.contactName,
+    carrier: sh.carrier,
+    trackingNumber: sh.trackingNumber,
+    trackingUrl: sh.trackingUrl || null,
+  });
+  try {
+    await deps.sendEmail({ to: order.contactEmail, ...content });
+  } catch (e) {
+    console.error(
+      `No se pudo reenviar el mail de despacho del pedido ${order.orderNumber}`,
+      e,
+    );
+    throw new Error("No se pudo enviar el mail. Probá de nuevo en un rato.");
+  }
+  return { id: order.id };
 }

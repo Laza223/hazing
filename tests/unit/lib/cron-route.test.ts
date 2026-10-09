@@ -88,6 +88,7 @@ describe("GET /api/cron", () => {
     deleteMany.mockResolvedValue({ count: 0 });
     vi.spyOn(console, "error").mockImplementation(() => {});
     const res = await GET(request("Bearer correcto"));
+    expect(res.status).toBe(500);
     expect(runOrderExpiryJob).toHaveBeenCalledOnce();
     await expect(res.json()).resolves.toMatchObject({
       ok: false,
