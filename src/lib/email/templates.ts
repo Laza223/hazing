@@ -79,7 +79,10 @@ function totalsBlock(d: OrderEmailData): string {
   const rows = [
     ["Subtotal", d.subtotal],
     ...(d.discountTotal > 0 ? [["Descuento", -d.discountTotal] as const] : []),
-    ["Envío", d.shippingCost],
+    // Con retiro no hay envío: la línea "Entrega: Retiro…" ya lo dice.
+    ...(d.shippingMethod === "retiro"
+      ? []
+      : [["Envío", d.shippingCost] as const]),
     ["Total", d.total],
   ] as Array<readonly [string, number]>;
   return rows
@@ -107,7 +110,7 @@ export function orderConfirmationEmail(d: OrderEmailData): EmailContent {
     <p>Entrega: ${shippingMethodLabel(d.shippingMethod)}.</p>${pickupHtml(d)}
     <p>Cualquier duda, escribinos por WhatsApp.</p>
   </div>`;
-  const text = `Hazing\n\nHola ${d.contactName}. Recibimos tu pedido ${d.orderNumber}\n\n${itemsText(d.items)}\n\nSubtotal: ${formatARS(d.subtotal)}\nDescuento: ${formatARS(d.discountTotal)}\nEnvío: ${formatARS(d.shippingCost)}\nTotal: ${formatARS(d.total)}\nEntrega: ${SHIPPING_METHOD_LABEL[d.shippingMethod] ?? d.shippingMethod}${pickupText(d)}`;
+  const text = `Hazing\n\nHola ${d.contactName}. Recibimos tu pedido ${d.orderNumber}\n\n${itemsText(d.items)}\n\nSubtotal: ${formatARS(d.subtotal)}\nDescuento: ${formatARS(d.discountTotal)}${d.shippingMethod === "retiro" ? "" : `\nEnvío: ${formatARS(d.shippingCost)}`}\nTotal: ${formatARS(d.total)}\nEntrega: ${SHIPPING_METHOD_LABEL[d.shippingMethod] ?? d.shippingMethod}${pickupText(d)}`;
   return { subject, html, text };
 }
 

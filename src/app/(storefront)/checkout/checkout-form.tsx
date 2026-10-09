@@ -484,6 +484,7 @@ export function CheckoutForm({
           discount={discount}
           total={total}
           shipping={couponFreeShipping ? { cost: 0, free: true } : shipping}
+          pickup={isPickup}
         />
         <div className="flex flex-col gap-1">
           <label className="flex items-start gap-2 text-xs text-ink-2">

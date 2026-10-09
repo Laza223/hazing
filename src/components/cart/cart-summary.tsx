@@ -7,6 +7,8 @@ export interface CartSummaryProps {
   /** `undefined` = no se muestra la línea de envío (carrito, antes del checkout).
    *  `null` = todavía no se calculó. Objeto = costo ya calculado (Fase 8). */
   shipping?: { cost: number; free: boolean } | null;
+  /** Retiro en Luján: la línea dice "Retiro: Sin costo" en vez de "Envío: Gratis". */
+  pickup?: boolean;
 }
 
 /**
@@ -19,6 +21,7 @@ export function CartSummary({
   discount,
   total,
   shipping,
+  pickup = false,
 }: CartSummaryProps) {
   return (
     <dl className="space-y-2 text-sm">
@@ -34,13 +37,15 @@ export function CartSummary({
       )}
       {shipping !== undefined && (
         <div className="flex justify-between">
-          <dt className="text-ink-2">Envío</dt>
+          <dt className="text-ink-2">{pickup ? "Retiro" : "Envío"}</dt>
           <dd className="tabular-nums text-ink">
-            {shipping === null
-              ? "A calcular"
-              : shipping.free
-                ? "Gratis"
-                : formatPrice(shipping.cost)}
+            {pickup
+              ? "Sin costo"
+              : shipping === null
+                ? "A calcular"
+                : shipping.free
+                  ? "Gratis"
+                  : formatPrice(shipping.cost)}
           </dd>
         </div>
       )}

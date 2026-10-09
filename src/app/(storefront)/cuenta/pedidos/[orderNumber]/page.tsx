@@ -89,9 +89,11 @@ export default async function PedidoDetallePage({
           </div>
         )}
         <div className="flex justify-between">
-          <span>Envío</span>
+          <span>{order.shippingMethod === "retiro" ? "Retiro" : "Envío"}</span>
           <span className="tabular-nums">
-            {formatPrice(Number(order.shippingCost))}
+            {order.shippingMethod === "retiro"
+              ? "Sin costo"
+              : formatPrice(Number(order.shippingCost))}
           </span>
         </div>
         <div className="flex justify-between font-medium">

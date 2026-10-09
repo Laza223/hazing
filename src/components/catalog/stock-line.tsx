@@ -26,7 +26,7 @@ export function StockLine({
   if (stock <= lowStockThreshold) {
     return (
       <p className={cn("text-xs text-ink-2", className)}>
-        Últimas {stock} unidades
+        {stock === 1 ? "Última unidad" : `Últimas ${stock} unidades`}
       </p>
     );
   }

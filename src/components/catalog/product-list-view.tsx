@@ -12,6 +12,15 @@ import type { Crumb } from "@/lib/catalog/categories";
 
 type RawSearchParams = Record<string, string | string[] | undefined>;
 
+const FILTER_PARAMS = [
+  "min",
+  "max",
+  "oferta",
+  "disponible",
+  "talle",
+  "color",
+] as const;
+
 /** Construye la URL de una página preservando el resto de los params de la búsqueda actual. */
 function buildPageHref(
   basePath: string,
@@ -56,6 +65,8 @@ export function ProductListView({
   breadcrumbs,
   subcategories = [],
 }: ProductListViewProps) {
+  // Mismos params que lee ActiveFilters: sin ninguno, "quitar filtros" no aplica.
+  const hasFilters = FILTER_PARAMS.some((key) => rawParams[key] !== undefined);
   return (
     <section className="mx-auto max-w-[1600px] space-y-6 px-4 py-10 md:px-10 md:py-14 lg:px-16">
       {breadcrumbs && breadcrumbs.length > 0 && (
@@ -67,7 +78,9 @@ export function ProductListView({
           <h1 className="font-display text-3xl text-ink md:text-4xl">
             {title}
           </h1>
-          <p className="text-sm text-ink-3">{result.total} productos</p>
+          <p className="text-sm text-ink-3">
+            {result.total} {result.total === 1 ? "producto" : "productos"}
+          </p>
         </div>
         <div className="flex items-center gap-6">
           <FilterPanel
@@ -94,7 +107,11 @@ export function ProductListView({
       ) : (
         <div className="border border-line-2 bg-paper-2 px-6 py-16 text-center">
           <p className="text-sm text-ink">No encontramos productos.</p>
-          <p className="mt-1 text-xs text-ink-3">Probá quitar algún filtro.</p>
+          {hasFilters && (
+            <p className="mt-1 text-xs text-ink-3">
+              Probá quitar algún filtro.
+            </p>
+          )}
         </div>
       )}
     </section>
