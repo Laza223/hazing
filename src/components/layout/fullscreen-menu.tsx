@@ -50,7 +50,7 @@ const ITEM_CLASS =
 const ITEM_LABEL_CLASS =
   "tracking-caps-lg font-display uppercase leading-none transition-transform duration-ui ease-ui group-hover/nav:hover:translate-x-2 group-hover/nav:focus-visible:translate-x-2";
 const PRODUCT_LABEL_STYLE = {
-  fontSize: "clamp(1.75rem, min(5vw, 8svh), 5rem)",
+  fontSize: "clamp(1.375rem, min(5vw, 8svh), 5rem)",
   fontVariationSettings: '"wdth" 110',
 } as const;
 
@@ -202,7 +202,7 @@ export function FullscreenMenu({
                         <span
                           className={ITEM_LABEL_CLASS}
                           style={{
-                            fontSize: "clamp(2.25rem, min(6.5vw, 13svh), 8rem)",
+                            fontSize: "clamp(1.75rem, min(6.5vw, 13svh), 8rem)",
                             fontVariationSettings: '"wdth" 110',
                           }}
                         >

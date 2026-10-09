@@ -5,34 +5,33 @@
  */
 
 /**
- * [BORRADOR — pendiente de aprobación de la dueña, ver docs/spec/05-direccion-arte.md §14.6]
- * Statement de una línea para el hero (Fase 5.2) y el cierre del momento
- * inmersivo (Fase 5.3, beat 0.65-0.90).
+ * Statement de una línea para el hero. Elegido por la dueña (2026-09-29).
  */
-export const BRAND_STATEMENT = "Prendas que no necesitan ruido.";
+export const BRAND_STATEMENT = "Nuevos ingresos, misma obsesión.";
 
 /**
- * [BORRADOR — pendiente de aprobación de la dueña]
- * Textos de las secciones de la home (src/app/(storefront)/page.tsx).
+ * Textos de las secciones de la home (src/app/(storefront)/page.tsx). Títulos
+ * aprobados por la dueña (2026-09-29); el resto sigue siendo borrador.
  */
 export const HERO_EYEBROW = "Nueva temporada";
 
 export const HOME_STORY = {
   eyebrow: "La marca",
-  title: "Diseñada en Luján. Pensada para repetirse.",
+  title: "De Luján, para tu vestidor.",
+  body: "Una selección de prendas en tendencia y básicos que vas a querer usar una y otra vez.",
   linkLabel: "Conocé la tienda",
 } as const;
 
 export const HOME_EDITORIAL = {
   eyebrow: "Editorial",
-  title: "Lo justo, bien hecho.",
+  title: "Outfits para todos tus planes.",
   body: "Básicos con carácter y prendas que se combinan entre sí: menos piezas, más looks.",
   linkLabel: "Ver la colección",
 } as const;
 
 export const HOME_CAMPAIGN_BAND = {
   eyebrow: "Envíos a todo el país",
-  title: "Todo el lookbook, en la tienda.",
+  title: "Tu look completo, acá.",
   linkLabel: "Comprar ahora",
 } as const;
 

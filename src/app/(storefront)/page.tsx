@@ -11,7 +11,6 @@ import {
   HOME_CAMPAIGN_BAND,
   HOME_EDITORIAL,
   HOME_STORY,
-  MENU_BRAND_BLURB,
 } from "@/lib/content/copy";
 
 /**
@@ -95,7 +94,7 @@ export default async function HomePage() {
       <StorySplit
         eyebrow={HOME_STORY.eyebrow}
         title={HOME_STORY.title}
-        body={MENU_BRAND_BLURB}
+        body={HOME_STORY.body}
         href="/tienda"
         linkLabel={HOME_STORY.linkLabel}
         imageSrc={`${CAMPAIGN}/story-01.webp`}

@@ -35,23 +35,15 @@ test.describe("shell del storefront", () => {
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
 
-    // Nombres exactos: "Hazing" también aparece en el link de Instagram
-    // ("@hazing.ok") del pie del propio menú, así que un match parcial
-    // resolvería a dos elementos (strict mode violation de Playwright).
+    // "Productos" es un botón: abre el submenú de categorías en vez de navegar.
     await expect(
       dialog.getByRole("link", { name: "01 Nuevo", exact: true }),
     ).toBeVisible();
     await expect(
-      dialog.getByRole("link", { name: "02 Tienda", exact: true }),
+      dialog.getByRole("button", { name: "02 Productos", exact: true }),
     ).toBeVisible();
     await expect(
-      dialog.getByRole("link", { name: "03 Lookbook", exact: true }),
-    ).toBeVisible();
-    await expect(
-      dialog.getByRole("link", { name: "04 Hazing", exact: true }),
-    ).toBeVisible();
-    await expect(
-      dialog.getByRole("link", { name: "05 Contacto", exact: true }),
+      dialog.getByRole("link", { name: "03 Contacto", exact: true }),
     ).toBeVisible();
 
     await page.keyboard.press("Escape");
@@ -140,7 +132,7 @@ test.describe("home", () => {
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: "Prendas que no necesitan ruido.",
+        name: "Nuevos ingresos, misma obsesión.",
       }),
     ).toBeVisible();
     await expect(
@@ -151,14 +143,14 @@ test.describe("home", () => {
     // fotos, así que no se exige acá.
 
     await expect(
-      page.getByRole("heading", { name: /Diseñada en Luján/ }),
+      page.getByRole("heading", { name: "De Luján, para tu vestidor." }),
     ).toBeAttached();
     await expect(page.getByRole("region", { name: "Lookbook" })).toBeAttached();
     await expect(
-      page.getByRole("heading", { name: "Lo justo, bien hecho." }),
+      page.getByRole("heading", { name: "Outfits para todos tus planes." }),
     ).toBeAttached();
     await expect(
-      page.getByRole("heading", { name: "Todo el lookbook, en la tienda." }),
+      page.getByRole("heading", { name: "Tu look completo, acá." }),
     ).toBeAttached();
   });
 });
