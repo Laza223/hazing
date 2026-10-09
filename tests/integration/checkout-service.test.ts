@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import {
   createCheckout,
+  PaymentProviderError,
   type CreateCheckoutDeps,
   type CheckoutLineInput,
 } from "@/lib/orders/checkout-service";
@@ -38,9 +39,10 @@ function makeDeps(over: Partial<CreateCheckoutDeps> = {}): {
         created.order = { id: "ord-1", ...data, payments: [{ id: "pay-1" }] };
         return created.order;
       }),
+      updateMany: vi.fn(async () => ({ count: 1 })),
     },
     payment: { update: vi.fn(async () => ({})) },
-    cart: { update: vi.fn(async () => ({})) },
+    cart: { updateMany: vi.fn(async () => ({ count: 1 })) },
   };
   const deps: CreateCheckoutDeps = {
     db: {
@@ -178,7 +180,7 @@ describe("createCheckout", () => {
         })),
       },
       payment: { update: vi.fn() },
-      cart: { update: vi.fn() },
+      cart: { updateMany: vi.fn(async () => ({ count: 1 })) },
     };
     (deps.db.$transaction as any) = vi.fn(async (fn: any) => fn(tx));
     await createCheckout({ ...baseInput, couponCode: "ENVIOGRATIS" }, deps);
@@ -225,6 +227,51 @@ describe("createCheckout", () => {
     const sum = items.reduce((a, it) => a + it.unit_price * it.quantity, 0);
     expect(sum).toBe(8260); // = total con descuento, lo que MP realmente cobra
     expect(items).toHaveLength(1);
+  });
+
+  it("camino feliz con cartId: marca el carrito ordered exigiendo que esté active", async () => {
+    const { deps } = makeDeps();
+    await createCheckout({ ...baseInput, cartId: "cart-1" }, deps);
+    const tx = (deps as any)._tx;
+    expect(tx.cart.updateMany).toHaveBeenCalledWith({
+      where: { id: "cart-1", status: "active" },
+      data: { status: "ordered" },
+    });
+    expect(tx.order.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("si MP falla: carrito vuelve a active, pedido cancelado y error amigable (sin el texto de MP)", async () => {
+    const { deps } = makeDeps({
+      createPreference: vi.fn(async () => {
+        throw new Error('MP createPreference falló: 500 {"message":"boom"}');
+      }),
+    });
+    const err = await createCheckout(
+      { ...baseInput, cartId: "cart-1" },
+      deps,
+    ).catch((e) => e);
+    expect(err).toBeInstanceOf(PaymentProviderError);
+    expect(err.message).not.toContain("boom");
+    expect(err.message).toContain("Mercado Pago");
+    const tx = (deps as any)._tx;
+    expect(tx.order.updateMany).toHaveBeenCalledWith({
+      where: { id: "ord-1", status: "pending_payment" },
+      data: { status: "cancelled" },
+    });
+    expect(tx.cart.updateMany).toHaveBeenLastCalledWith({
+      where: { id: "cart-1", status: "ordered" },
+      data: { status: "active" },
+    });
+    expect(tx.payment.update).not.toHaveBeenCalled();
+  });
+
+  it("doble envío: si el carrito ya no está active falla y la tx se revierte", async () => {
+    const { deps } = makeDeps();
+    (deps as any)._tx.cart.updateMany = vi.fn(async () => ({ count: 0 }));
+    await expect(
+      createCheckout({ ...baseInput, cartId: "cart-1" }, deps),
+    ).rejects.toThrow("Este carrito ya se está procesando.");
+    expect(deps.createPreference).not.toHaveBeenCalled();
   });
 
   it("pasa método, cp, province, subtotal y unidades a quoteShipping (el costo se recalcula en server)", async () => {

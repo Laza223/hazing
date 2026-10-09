@@ -56,7 +56,7 @@ function makeDeps(redemptions: number): {
     $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
       fn({
         order: { create: createOrder },
-        cart: { update: vi.fn(async () => ({})) },
+        cart: { updateMany: vi.fn(async () => ({ count: 1 })) },
         payment: { update: vi.fn(async () => ({})) },
       }),
     ),

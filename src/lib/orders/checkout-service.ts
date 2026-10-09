@@ -91,6 +91,20 @@ export interface CreateCheckoutResult {
   initPoint: string;
 }
 
+/** Falla al crear la preference de MP (red, timeout, HTTP no-ok). El detalle técnico
+ *  queda en `cause`; nunca debe llegar a la clienta. */
+export class PaymentProviderError extends Error {
+  constructor(cause: unknown) {
+    super(
+      "No pudimos conectar con Mercado Pago. Probá de nuevo en unos segundos.",
+      {
+        cause,
+      },
+    );
+    this.name = "PaymentProviderError";
+  }
+}
+
 /** Lee la secuencia order_number_seq dentro de la tx (default real). */
 async function defaultNextOrderSeq(
   tx: PrismaTransactionClient,
@@ -200,11 +214,16 @@ export async function createCheckout(
       },
       include: { payments: true },
     });
-    if (input.cartId)
-      await tx.cart.update({
-        where: { id: input.cartId },
+    if (input.cartId) {
+      // Precondición de estado: un doble envío del form no puede crear dos pedidos
+      // (el throw revierte la tx, incluido el Order recién creado).
+      const claimed = await tx.cart.updateMany({
+        where: { id: input.cartId, status: "active" },
         data: { status: "ordered" },
       });
+      if (claimed.count !== 1)
+        throw new Error("Este carrito ya se está procesando.");
+    }
     return created;
   });
 
@@ -231,14 +250,39 @@ export async function createCheckout(
             ? [{ title: "Envío", quantity: 1, unit_price: shippingCost }]
             : []),
         ];
-  const preference = await deps.createPreference({
-    orderId: order.id,
-    orderNumber: order.orderNumber,
-    items: mpItems,
-    payerEmail: input.contactEmail,
-    appUrl: deps.appUrl,
-    notificationUrl: `${deps.appUrl}/api/webhooks/mercadopago`,
-  });
+  let preference: Awaited<ReturnType<typeof realCreatePreference>>;
+  try {
+    preference = await deps.createPreference({
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      items: mpItems,
+      payerEmail: input.contactEmail,
+      appUrl: deps.appUrl,
+      notificationUrl: `${deps.appUrl}/api/webhooks/mercadopago`,
+    });
+  } catch (cause) {
+    // Compensación: la clienta no pierde el carrito y no queda un pedido huérfano.
+    // Cupón/stock se consumen recién al aprobarse el pago, así que no hay nada más que soltar.
+    try {
+      await deps.db.$transaction(async (tx) => {
+        await tx.order.updateMany({
+          where: { id: order.id, status: "pending_payment" },
+          data: { status: "cancelled" },
+        });
+        if (input.cartId)
+          await tx.cart.updateMany({
+            where: { id: input.cartId, status: "ordered" },
+            data: { status: "active" },
+          });
+      });
+    } catch (compensationError) {
+      console.error(
+        `[checkout] no se pudo compensar el pedido ${order.orderNumber}:`,
+        compensationError,
+      );
+    }
+    throw new PaymentProviderError(cause);
+  }
 
   await deps.db.$transaction(async (tx) => {
     await tx.payment.update({

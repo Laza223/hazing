@@ -30,6 +30,7 @@ import { shippingQuoteDeps } from "@/lib/orders/checkout-data";
 import {
   createCheckout,
   defaultCheckoutDeps,
+  PaymentProviderError,
 } from "@/lib/orders/checkout-service";
 import {
   validateCheckoutForm,
@@ -361,8 +362,12 @@ export async function createCheckoutAction(input: {
       orderNumber: result.orderNumber,
     };
   } catch (e) {
-    // AbortSignal.timeout() en mercadopago.ts tira un DOMException técnico en inglés — no
-    // mostrárselo a la clienta (mismo patrón que glamify).
+    console.error("[checkout] createCheckoutAction falló:", e);
+    // Falla de MP/red al crear la preference: el mensaje del error ya es amigable,
+    // el detalle técnico queda en `cause` (logueado arriba).
+    if (e instanceof PaymentProviderError)
+      return { ok: false, error: e.message };
+    // AbortSignal.timeout() tira un DOMException técnico en inglés — no mostrárselo a la clienta.
     if (
       e instanceof DOMException &&
       (e.name === "TimeoutError" || e.name === "AbortError")
