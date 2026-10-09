@@ -70,6 +70,11 @@ export default function PrivacidadPage() {
         <strong>10 días corridos</strong> (art. 14) y la rectificación o
         supresión dentro de los <strong>5 días hábiles</strong> (art. 16).
       </p>
+      <p>
+        Para pedir la supresión de tus datos, escribinos a {businessInfo.email}{" "}
+        con el asunto «Supresión de datos» y respondemos dentro del plazo legal
+        indicado.
+      </p>
 
       <h2>7. Conservación</h2>
       <p>
@@ -79,8 +84,9 @@ export default function PrivacidadPage() {
 
       <h2>8. Baja de comunicaciones</h2>
       <p>
-        Podés darte de baja de los emails de marketing en cualquier momento
-        desde el enlace del correo o escribiéndonos a {businessInfo.email}.
+        Podés darte de baja de los emails de marketing y de recordatorio de
+        carrito en cualquier momento desde el enlace del correo, desde tus datos
+        en tu cuenta o escribiéndonos a {businessInfo.email}.
       </p>
 
       <h2>9. Autoridad de control</h2>

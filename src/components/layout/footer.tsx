@@ -7,10 +7,12 @@ import {
   CONTACT_WHATSAPP_DISPLAY,
   CONTACT_WHATSAPP_URL,
 } from "@/lib/content/copy";
+import { businessInfo } from "@/lib/legal/business-info";
 
 interface FooterLink {
   label: string;
   href: string;
+  external?: boolean;
 }
 
 // Rutas reales (sub-fases 6.2/6.3/6.5). Lookbook ancla a la sección de la
@@ -30,6 +32,11 @@ const LEGAL_LINKS: FooterLink[] = [
   { label: "Botón de Arrepentimiento", href: "/arrepentimiento" },
   { label: "Privacidad", href: "/privacidad" },
   { label: "Términos", href: "/terminos" },
+  {
+    label: "Defensa del Consumidor",
+    href: businessInfo.consumerDefenseUrl,
+    external: true,
+  },
 ];
 
 /**
@@ -95,9 +102,20 @@ function FooterColumn({
       <ul className="mt-4 flex flex-col gap-2">
         {items.map((item) => (
           <li key={item.label}>
-            <Link href={item.href} className={linkClass}>
-              {item.label}
-            </Link>
+            {item.external ? (
+              <a
+                href={item.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={linkClass}
+              >
+                {item.label}
+              </a>
+            ) : (
+              <Link href={item.href} className={linkClass}>
+                {item.label}
+              </Link>
+            )}
           </li>
         ))}
       </ul>

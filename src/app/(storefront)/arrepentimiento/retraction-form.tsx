@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import * as LabelPrimitive from "@radix-ui/react-label";
 
 import { Button } from "@/components/ui/button";
+import { businessInfo } from "@/lib/legal/business-info";
 import { TextInput } from "@/components/ui/text-input";
 import { requestRetractionAction } from "./actions";
 
@@ -17,6 +18,7 @@ export function RetractionForm() {
   const [error, setError] = useState<string | null>(null);
   const [ticket, setTicket] = useState<string | null>(null);
   const [date, setDate] = useState<string | null>(null);
+  const [emailSent, setEmailSent] = useState(true);
   const [pending, setPending] = useState(false);
   const successRef = useRef<HTMLDivElement>(null);
 
@@ -29,19 +31,27 @@ export function RetractionForm() {
     setError(null);
     setPending(true);
     const fd = new FormData(e.currentTarget);
-    const res = await requestRetractionAction({
-      contactName: String(fd.get("contactName") ?? ""),
-      contactEmail: String(fd.get("contactEmail") ?? ""),
-      contactPhone: String(fd.get("contactPhone") ?? ""),
-      orderNumber: String(fd.get("orderNumber") ?? ""),
-      reason: String(fd.get("reason") ?? ""),
-      website: String(fd.get("website") ?? ""),
-    });
-    setPending(false);
-    if (res.ok) {
-      setTicket(res.ticket ?? "—");
-      setDate(res.date ?? null);
-    } else setError(res.error ?? "No se pudo procesar la solicitud.");
+    try {
+      const res = await requestRetractionAction({
+        contactName: String(fd.get("contactName") ?? ""),
+        contactEmail: String(fd.get("contactEmail") ?? ""),
+        contactPhone: String(fd.get("contactPhone") ?? ""),
+        orderNumber: String(fd.get("orderNumber") ?? ""),
+        reason: String(fd.get("reason") ?? ""),
+        website: String(fd.get("website") ?? ""),
+      });
+      if (res.ok) {
+        setTicket(res.ticket ?? "—");
+        setDate(res.date ?? null);
+        setEmailSent(res.receiptEmailSent !== false);
+      } else setError(res.error ?? "No se pudo procesar la solicitud.");
+    } catch {
+      setError(
+        `No pudimos enviar la solicitud. Probá de nuevo o escribinos a ${businessInfo.email}`,
+      );
+    } finally {
+      setPending(false);
+    }
   }
 
   if (ticket) {
@@ -58,8 +68,10 @@ export function RetractionForm() {
         <p className="mt-1 text-sm text-ink-2">
           Tu número de constancia es{" "}
           <strong className="text-ink">{ticket}</strong>
-          {date ? <> del {date}</> : null}. Te enviamos una copia por email y te
-          vamos a contactar para coordinar la devolución y el reintegro.
+          {date ? <> del {date}</> : null}.{" "}
+          {emailSent
+            ? "Te enviamos una copia por email y te vamos a contactar para coordinar la devolución y el reintegro."
+            : "Guardá este número: no pudimos enviarte la copia por email. Te vamos a contactar para coordinar la devolución y el reintegro."}
         </p>
       </div>
     );

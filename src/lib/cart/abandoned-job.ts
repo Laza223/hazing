@@ -77,11 +77,15 @@ export async function runAbandonedCartJob(
       status: "active",
       abandonedEmailSentAt: null,
       updatedAt: { lte: cutoff },
+      // Solo clientas con cuenta y consentimiento: el mail trae el link de baja a /cuenta/datos.
+      customer: { is: { marketingConsent: true } },
+      items: { some: {} },
     },
     include: {
       customer: true,
       items: { include: { variant: { include: { product: true } } } },
     },
+    orderBy: { updatedAt: "asc" },
     take: deps.batch ?? 50,
   });
 
@@ -108,18 +112,26 @@ export async function runAbandonedCartJob(
       name: n.name,
       items,
       recoverUrl: `${deps.appUrl}/carrito`,
+      unsubscribeUrl: `${deps.appUrl}/cuenta/datos`,
     });
-    await deps.sendEmail({
-      to: n.email,
-      subject: email.subject,
-      html: email.html,
-      text: email.text,
-    });
-    await deps.db.cart.update({
-      where: { id: n.row.cartId },
-      data: { abandonedEmailSentAt: deps.now },
-    });
-    sent += 1;
+    try {
+      await deps.sendEmail({
+        to: n.email,
+        subject: email.subject,
+        html: email.html,
+        text: email.text,
+      });
+      await deps.db.cart.update({
+        where: { id: n.row.cartId },
+        data: { abandonedEmailSentAt: deps.now },
+      });
+      sent += 1;
+    } catch (err) {
+      console.error(
+        `abandoned cart email falló (carrito ${n.row.cartId})`,
+        err,
+      );
+    }
   }
   return { sent };
 }

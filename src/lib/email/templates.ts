@@ -1,4 +1,6 @@
 import { formatARS } from "@/lib/money";
+import { businessInfo } from "@/lib/legal/business-info";
+import { appBaseUrl } from "@/lib/seo/url";
 
 /** Escapa HTML para interpolar texto del usuario en cuerpos de email (anti-inyección). */
 function escapeHtml(s: string): string {
@@ -99,7 +101,12 @@ function totalsBlock(d: OrderEmailData): string {
 const INK = "#171717";
 
 /** Email de confirmación a la clienta. */
-export function orderConfirmationEmail(d: OrderEmailData): EmailContent {
+export function orderConfirmationEmail(
+  d: OrderEmailData,
+  appUrl: string = appBaseUrl(),
+): EmailContent {
+  const retractionUrl = `${appUrl}/arrepentimiento`;
+  const retractionLine = `Tenés ${businessInfo.retractionDays} días corridos desde que recibís tu pedido para arrepentirte de la compra:`;
   const subject = `Recibimos tu pedido ${d.orderNumber} — Hazing`;
   const html = `<div style="font-family:Georgia,serif;color:${INK}">
     <h1 style="font-weight:400;text-transform:uppercase;letter-spacing:0.08em">Hazing</h1>
@@ -109,8 +116,9 @@ export function orderConfirmationEmail(d: OrderEmailData): EmailContent {
     <table style="width:100%;border-collapse:collapse">${totalsBlock(d)}</table>
     <p>Entrega: ${shippingMethodLabel(d.shippingMethod)}.</p>${pickupHtml(d)}
     <p>Cualquier duda, escribinos por WhatsApp.</p>
+    <p style="font-size:12px;color:#737373">${retractionLine} <a href="${retractionUrl}" style="color:${INK}">${retractionUrl}</a></p>
   </div>`;
-  const text = `Hazing\n\nHola ${d.contactName}. Recibimos tu pedido ${d.orderNumber}\n\n${itemsText(d.items)}\n\nSubtotal: ${formatARS(d.subtotal)}\nDescuento: ${formatARS(d.discountTotal)}${d.shippingMethod === "retiro" ? "" : `\nEnvío: ${formatARS(d.shippingCost)}`}\nTotal: ${formatARS(d.total)}\nEntrega: ${SHIPPING_METHOD_LABEL[d.shippingMethod] ?? d.shippingMethod}${pickupText(d)}`;
+  const text = `Hazing\n\nHola ${d.contactName}. Recibimos tu pedido ${d.orderNumber}\n\n${itemsText(d.items)}\n\nSubtotal: ${formatARS(d.subtotal)}\nDescuento: ${formatARS(d.discountTotal)}${d.shippingMethod === "retiro" ? "" : `\nEnvío: ${formatARS(d.shippingCost)}`}\nTotal: ${formatARS(d.total)}\nEntrega: ${SHIPPING_METHOD_LABEL[d.shippingMethod] ?? d.shippingMethod}${pickupText(d)}\n\n${retractionLine} ${retractionUrl}`;
   return { subject, html, text };
 }
 
@@ -180,6 +188,8 @@ export interface AbandonedCartEmailData {
   name?: string | null;
   items: OrderEmailItem[];
   recoverUrl: string;
+  /** Link de baja (ajustes de la cuenta). Ley 25.326. */
+  unsubscribeUrl: string;
 }
 
 /** Email de recupero de carrito abandonado (un único recordatorio a 24h). */
@@ -200,8 +210,9 @@ export function abandonedCartEmail(d: AbandonedCartEmailData): EmailContent {
       <a href="${d.recoverUrl}" style="background:${INK};color:#fff;padding:12px 20px;text-decoration:none;display:inline-block">Volver a mi carrito</a>
     </p>
     <p style="font-size:12px;color:#737373">Si ya compraste o no te interesa, ignorá este mensaje.</p>
+    <p style="font-size:12px;color:#737373"><a href="${d.unsubscribeUrl}" style="color:#737373">Dejar de recibir estos mails</a></p>
   </div>`;
-  const text = `${hi}te quedó algo en el carrito:\n\n${d.items.map((it) => `- ${itemLabel(it)} × ${it.qty}: ${formatARS(it.lineTotal)}`).join("\n")}\n\nVolvé a tu carrito: ${d.recoverUrl}`;
+  const text = `${hi}te quedó algo en el carrito:\n\n${d.items.map((it) => `- ${itemLabel(it)} × ${it.qty}: ${formatARS(it.lineTotal)}`).join("\n")}\n\nVolvé a tu carrito: ${d.recoverUrl}\n\nDejar de recibir estos mails: ${d.unsubscribeUrl}`;
   return { subject, html, text };
 }
 

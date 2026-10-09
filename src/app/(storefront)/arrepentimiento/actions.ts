@@ -9,6 +9,7 @@ import { enforceRateLimit } from "@/lib/rate-limit";
 export interface RetractionActionResult extends ActionResult {
   ticket?: string;
   date?: string;
+  receiptEmailSent?: boolean;
 }
 
 export async function requestRetractionAction(
@@ -21,6 +22,11 @@ export async function requestRetractionAction(
   }
   const r = await createRetractionRequest(input, { db: prisma });
   return r.ok
-    ? { ok: true, ticket: r.ticket, date: r.date }
+    ? {
+        ok: true,
+        ticket: r.ticket,
+        date: r.date,
+        receiptEmailSent: r.receiptEmailSent,
+      }
     : { ok: false, error: r.error };
 }

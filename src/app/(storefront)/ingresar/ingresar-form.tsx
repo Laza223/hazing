@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { TextInput } from "@/components/ui/text-input";
@@ -11,6 +12,9 @@ import {
 } from "./actions";
 
 type Mode = "in" | "up" | "recover";
+
+const legalLinkClass =
+  "underline underline-offset-4 outline-none hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
 export function IngresarForm({
   initialError = null,
@@ -173,6 +177,19 @@ export function IngresarForm({
               ? "Crear cuenta"
               : "Enviar link"}
         </Button>
+        {mode === "up" && (
+          <p className="text-xs text-ink-2">
+            Al crear tu cuenta aceptás los{" "}
+            <Link href="/terminos" className={legalLinkClass}>
+              Términos y condiciones
+            </Link>{" "}
+            y la{" "}
+            <Link href="/privacidad" className={legalLinkClass}>
+              Política de privacidad
+            </Link>
+            .
+          </p>
+        )}
       </form>
     </div>
   );

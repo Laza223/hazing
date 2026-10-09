@@ -26,7 +26,8 @@ export interface RetractionDeps {
   ownerEmail?: string;
 }
 export type RetractionResult =
-  { ok: true; ticket: string; date: string } | { ok: false; error: string };
+  | { ok: true; ticket: string; date: string; receiptEmailSent: boolean }
+  | { ok: false; error: string };
 
 export async function createRetractionRequest(
   input: RetractionInput,
@@ -52,18 +53,21 @@ export async function createRetractionRequest(
   const send = deps.sendEmail ?? defaultSendEmail;
 
   // Constancia al consumidor (comprobante propio del ejercicio del derecho).
+  let receiptEmailSent = false;
   try {
     const receipt = retractionReceiptEmail({
       ticket,
       date,
       contactName: v.contactName,
     });
-    await send({
+    const sent = await send({
       to: v.contactEmail,
       subject: receipt.subject,
       html: receipt.html,
       text: receipt.text,
     });
+    // `logged` = sin API key: el mail se escribió en el log, no salió.
+    receiptEmailSent = sent?.logged !== true;
   } catch (err) {
     console.error("retraction receipt email failed", err);
   }
@@ -95,5 +99,5 @@ export async function createRetractionRequest(
     );
   }
 
-  return { ok: true, ticket, date };
+  return { ok: true, ticket, date, receiptEmailSent };
 }

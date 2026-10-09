@@ -55,3 +55,14 @@ describe("orderConfirmationEmail — punto de retiro", () => {
     expect(newOrderAlertEmail(base).html).not.toContain("Calle Falsa");
   });
 });
+
+describe("orderConfirmationEmail — arrepentimiento", () => {
+  it("incluye el plazo y el link a /arrepentimiento en html y texto", () => {
+    const m = orderConfirmationEmail(base, "https://hazing.test");
+    const line =
+      "Tenés 10 días corridos desde que recibís tu pedido para arrepentirte de la compra:";
+    expect(m.html).toContain(line);
+    expect(m.html).toContain('href="https://hazing.test/arrepentimiento"');
+    expect(m.text).toContain(`${line} https://hazing.test/arrepentimiento`);
+  });
+});
