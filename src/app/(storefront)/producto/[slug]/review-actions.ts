@@ -1,5 +1,7 @@
 "use server";
 
+import { publicErrorMessage } from "@/lib/prisma-errors";
+
 import { revalidatePath } from "next/cache";
 import { getCustomer } from "@/lib/customer/auth";
 import { createReview } from "@/lib/reviews/service";
@@ -49,7 +51,7 @@ export async function createReviewAction(
   } catch (e) {
     return {
       ok: false,
-      error: e instanceof Error ? e.message : "No se pudo enviar la reseña.",
+      error: publicErrorMessage(e, "No se pudo enviar la reseña."),
     };
   }
 }

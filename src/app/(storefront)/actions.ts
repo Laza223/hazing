@@ -1,5 +1,7 @@
 "use server";
 
+import { publicErrorMessage } from "@/lib/prisma-errors";
+
 import { unavailableLines } from "@/lib/cart/availability";
 import { revalidatePath } from "next/cache";
 import {
@@ -80,7 +82,7 @@ export async function addToCartAction(input: {
   } catch (e) {
     return {
       ok: false,
-      error: e instanceof Error ? e.message : "No se pudo agregar al carrito.",
+      error: publicErrorMessage(e, "No se pudo agregar al carrito."),
     };
   }
 }
@@ -99,8 +101,7 @@ export async function updateCartItemAction(
   } catch (e) {
     return {
       ok: false,
-      error:
-        e instanceof Error ? e.message : "No se pudo actualizar el carrito.",
+      error: publicErrorMessage(e, "No se pudo actualizar el carrito."),
     };
   }
 }
@@ -118,7 +119,7 @@ export async function removeCartItemAction(
   } catch (e) {
     return {
       ok: false,
-      error: e instanceof Error ? e.message : "No se pudo quitar del carrito.",
+      error: publicErrorMessage(e, "No se pudo quitar del carrito."),
     };
   }
 }
@@ -155,8 +156,7 @@ export async function setVariantQtyAction(input: {
   } catch (e) {
     return {
       ok: false,
-      error:
-        e instanceof Error ? e.message : "No se pudo actualizar la cantidad.",
+      error: publicErrorMessage(e, "No se pudo actualizar la cantidad."),
     };
   }
 }
@@ -374,7 +374,7 @@ export async function createCheckoutAction(input: {
     }
     return {
       ok: false,
-      error: e instanceof Error ? e.message : "No se pudo iniciar el pago.",
+      error: publicErrorMessage(e, "No se pudo iniciar el pago."),
     };
   }
 }
