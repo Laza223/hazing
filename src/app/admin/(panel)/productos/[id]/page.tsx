@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/admin/auth";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { labelCategories } from "@/lib/admin/categories/labels";
 import { toNumber } from "@/lib/catalog/pricing";
 import { PageHeader } from "@/components/admin/page-header";
 import {
@@ -36,15 +37,12 @@ export default async function EditarProductoPage({
     prisma.category.findMany({
       where: { active: true },
       orderBy: [{ order: "asc" }, { name: "asc" }],
-      select: { id: true, name: true },
+      select: { id: true, name: true, parentId: true },
     }),
   ]);
   if (!product) notFound();
 
-  const options: CategoryOption[] = categories.map((c) => ({
-    id: c.id,
-    name: c.name,
-  }));
+  const options: CategoryOption[] = labelCategories(categories);
 
   const initial: ProductFormInput = {
     name: product.name,

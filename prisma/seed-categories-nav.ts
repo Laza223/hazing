@@ -60,7 +60,16 @@ const GROUPS: {
   },
 ];
 
-const FLAT_SLUGS = ["tops", "bodys", "remeras", "jeans", "shorts"];
+const FLAT_SLUGS = [
+  "tops",
+  "bodys",
+  "bodies",
+  "remeras",
+  "jeans",
+  "shorts",
+  "polleras",
+  "vestidos",
+];
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {

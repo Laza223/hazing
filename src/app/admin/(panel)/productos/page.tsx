@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { labelCategories } from "@/lib/admin/categories/labels";
 import { formatARS } from "@/lib/money";
 import { toNumber } from "@/lib/catalog/pricing";
 import { productImageUrl } from "@/lib/images";
@@ -106,7 +107,7 @@ export default async function ProductosPage({
     prisma.category.findMany({
       where: { active: true },
       orderBy: [{ order: "asc" }, { name: "asc" }],
-      select: { id: true, name: true },
+      select: { id: true, name: true, parentId: true },
     }),
   ]);
 
@@ -155,7 +156,7 @@ export default async function ProductosPage({
             className={selectClass}
           >
             <option value="">Todas las categorías</option>
-            {categories.map((c) => (
+            {labelCategories(categories).map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
               </option>

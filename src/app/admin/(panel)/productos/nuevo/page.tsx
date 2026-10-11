@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/lib/admin/auth";
 import { prisma } from "@/lib/prisma";
+import { labelCategories } from "@/lib/admin/categories/labels";
 import { PageHeader } from "@/components/admin/page-header";
 import {
   ProductForm,
@@ -14,12 +15,9 @@ export default async function NuevoProductoPage() {
   const categories = await prisma.category.findMany({
     where: { active: true },
     orderBy: [{ order: "asc" }, { name: "asc" }],
-    select: { id: true, name: true },
+    select: { id: true, name: true, parentId: true },
   });
-  const options: CategoryOption[] = categories.map((c) => ({
-    id: c.id,
-    name: c.name,
-  }));
+  const options: CategoryOption[] = labelCategories(categories);
 
   return (
     <div className="space-y-6">
