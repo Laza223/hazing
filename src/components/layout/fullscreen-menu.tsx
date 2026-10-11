@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import * as Dialog from "@radix-ui/react-dialog";
 import gsap from "gsap";
-import { ArrowLeft } from "lucide-react";
 
 import { useReducedMotion } from "@/lib/motion/use-reduced-motion";
 import { DURATION, EASE } from "@/lib/motion/tokens";
@@ -61,7 +60,31 @@ export interface FullscreenMenuProps {
   categories: CategoryNode[];
 }
 
-type MenuView = "main" | "products";
+const SUB_LINK_CLASS =
+  "tracking-caps-sm inline-flex min-h-11 items-center text-xs uppercase text-ink-2 outline-none transition-colors duration-ui ease-ui hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+
+/** Panel plegable (grid 0fr→1fr); cerrado queda `inert` (sin foco ni lectura). */
+function Collapsible({
+  id,
+  open,
+  children,
+}: {
+  id: string;
+  open: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      id={id}
+      className="grid transition-[grid-template-rows] duration-ui ease-ui motion-reduce:transition-none"
+      style={{ gridTemplateRows: open ? "1fr" : "0fr" }}
+    >
+      <div className="overflow-hidden" inert={!open}>
+        {children}
+      </div>
+    </div>
+  );
+}
 
 /**
  * FullscreenMenu — overlay fullscreen con Radix Dialog (foco atrapado, Esc,
@@ -80,12 +103,13 @@ export function FullscreenMenu({
   onOpenChange,
   categories,
 }: FullscreenMenuProps) {
-  const [view, setView] = useState<MenuView>("main");
+  const [productsOpen, setProductsOpen] = useState(false);
+  const [openRoot, setOpenRoot] = useState<string | null>(null);
   const [mounted, setMounted] = useState(open);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const hovered =
     NAV_ITEMS.find((item) => item.label === hoveredItem) ?? NAV_ITEMS[0];
-  const previewSrc = view === "products" ? PRODUCTS_PREVIEW : hovered.preview;
+  const previewSrc = productsOpen ? PRODUCTS_PREVIEW : hovered.preview;
   const contentRef = useRef<HTMLDivElement>(null);
   const ruleRef = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
@@ -106,7 +130,10 @@ export function FullscreenMenu({
 
   // Al cerrar el menú vuelve a la vista principal.
   useEffect(() => {
-    if (!mounted) setView("main");
+    if (!mounted) {
+      setProductsOpen(false);
+      setOpenRoot(null);
+    }
   }, [mounted]);
 
   // Entrada: corre cuando el nodo recién se monta (open pasó a true).
@@ -190,117 +217,123 @@ export function FullscreenMenu({
           </Dialog.Close>
 
           <div className="grid flex-1 grid-cols-1 items-center gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-            {view === "main" ? (
-              <nav aria-label="Navegación principal" className="group/nav">
-                <ul className="flex flex-col gap-2">
-                  {NAV_ITEMS.map((item) => {
-                    const content = (
-                      <>
-                        <span className="tracking-caps-sm text-xs text-ink-4">
-                          {item.number}
-                        </span>
-                        <span
-                          className={ITEM_LABEL_CLASS}
-                          style={{
-                            fontSize: "clamp(1.75rem, min(6.5vw, 13svh), 8rem)",
-                            fontVariationSettings: '"wdth" 110',
-                          }}
+            <nav aria-label="Navegación principal" className="group/nav">
+              <ul className="flex flex-col gap-2">
+                {NAV_ITEMS.map((item) => {
+                  const content = (
+                    <>
+                      <span className="tracking-caps-sm text-xs text-ink-4">
+                        {item.number}
+                      </span>
+                      <span
+                        className={ITEM_LABEL_CLASS}
+                        style={{
+                          fontSize: "clamp(1.75rem, min(6.5vw, 13svh), 8rem)",
+                          fontVariationSettings: '"wdth" 110',
+                        }}
+                      >
+                        {item.label}
+                      </span>
+                    </>
+                  );
+                  const hoverProps = {
+                    onMouseEnter: () => setHoveredItem(item.label),
+                    onMouseLeave: () => setHoveredItem(null),
+                    onFocus: () => setHoveredItem(item.label),
+                    onBlur: () => setHoveredItem(null),
+                    className: ITEM_CLASS,
+                  };
+                  return (
+                    <li key={item.label}>
+                      {item.href ? (
+                        <Link
+                          href={item.href}
+                          onClick={() => onOpenChange(false)}
+                          {...hoverProps}
                         >
-                          {item.label}
-                        </span>
-                      </>
-                    );
-                    const hoverProps = {
-                      onMouseEnter: () => setHoveredItem(item.label),
-                      onMouseLeave: () => setHoveredItem(null),
-                      onFocus: () => setHoveredItem(item.label),
-                      onBlur: () => setHoveredItem(null),
-                      className: ITEM_CLASS,
-                    };
-                    return (
-                      <li key={item.label}>
-                        {item.href ? (
-                          <Link
-                            href={item.href}
-                            onClick={() => onOpenChange(false)}
-                            {...hoverProps}
-                          >
-                            {content}
-                          </Link>
-                        ) : (
+                          {content}
+                        </Link>
+                      ) : (
+                        <>
                           <button
                             type="button"
-                            aria-expanded={false}
-                            onClick={() => setView("products")}
+                            aria-expanded={productsOpen}
+                            aria-controls="menu-products"
+                            onClick={() => setProductsOpen((v) => !v)}
                             {...hoverProps}
                           >
                             {content}
                           </button>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </nav>
-            ) : (
-              <nav aria-label="Productos" className="group/nav">
-                <button
-                  type="button"
-                  onClick={() => setView("main")}
-                  className="tracking-caps-sm mb-4 inline-flex min-h-11 items-center gap-2 text-xs uppercase text-ink-2 outline-none transition-colors duration-ui ease-ui hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-                >
-                  <ArrowLeft aria-hidden="true" className="h-4 w-4" />
-                  Volver
-                </button>
-                <ul className="flex flex-col gap-1">
-                  <li>
-                    <Link
-                      href="/tienda"
-                      onClick={() => onOpenChange(false)}
-                      className={ITEM_CLASS}
-                    >
-                      <span
-                        className={ITEM_LABEL_CLASS}
-                        style={PRODUCT_LABEL_STYLE}
-                      >
-                        Ver todo
-                      </span>
-                    </Link>
-                  </li>
-                  {categories.map((root) => (
-                    <li key={root.id}>
-                      <Link
-                        href={`/tienda/${root.slug}`}
-                        onClick={() => onOpenChange(false)}
-                        className={ITEM_CLASS}
-                      >
-                        <span
-                          className={ITEM_LABEL_CLASS}
-                          style={PRODUCT_LABEL_STYLE}
-                        >
-                          {root.name}
-                        </span>
-                      </Link>
-                      {root.children.length > 0 && (
-                        <ul className="tracking-caps-sm flex flex-wrap gap-x-5 pb-2 pl-1 text-xs uppercase">
-                          {root.children.map((child) => (
-                            <li key={child.id}>
-                              <Link
-                                href={`/tienda/${root.slug}/${child.slug}`}
-                                onClick={() => onOpenChange(false)}
-                                className="inline-flex min-h-11 items-center text-ink-2 outline-none transition-colors duration-ui ease-ui hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-                              >
-                                {child.name}
-                              </Link>
-                            </li>
-                          ))}
-                        </ul>
+                          <Collapsible id="menu-products" open={productsOpen}>
+                            <ul className="flex flex-col gap-1 pb-2 pl-10">
+                              <li>
+                                <Link
+                                  href="/tienda"
+                                  onClick={() => onOpenChange(false)}
+                                  className={SUB_LINK_CLASS}
+                                >
+                                  Ver todo
+                                </Link>
+                              </li>
+                              {categories.map((root) => {
+                                const isOpen = openRoot === root.id;
+                                const panelId = `menu-root-${root.id}`;
+                                return (
+                                  <li key={root.id}>
+                                    <button
+                                      type="button"
+                                      aria-expanded={isOpen}
+                                      aria-controls={panelId}
+                                      onClick={() =>
+                                        setOpenRoot(isOpen ? null : root.id)
+                                      }
+                                      className={ITEM_CLASS}
+                                    >
+                                      <span
+                                        className={ITEM_LABEL_CLASS}
+                                        style={PRODUCT_LABEL_STYLE}
+                                      >
+                                        {root.name}
+                                      </span>
+                                    </button>
+                                    <Collapsible id={panelId} open={isOpen}>
+                                      <ul className="flex flex-col pb-2 pl-1">
+                                        <li>
+                                          <Link
+                                            href={`/tienda/${root.slug}`}
+                                            onClick={() => onOpenChange(false)}
+                                            className={SUB_LINK_CLASS}
+                                          >
+                                            Ver todo
+                                          </Link>
+                                        </li>
+                                        {root.children.map((child) => (
+                                          <li key={child.id}>
+                                            <Link
+                                              href={`/tienda/${root.slug}/${child.slug}`}
+                                              onClick={() =>
+                                                onOpenChange(false)
+                                              }
+                                              className={SUB_LINK_CLASS}
+                                            >
+                                              {child.name}
+                                            </Link>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </Collapsible>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </Collapsible>
+                        </>
                       )}
                     </li>
-                  ))}
-                </ul>
-              </nav>
-            )}
+                  );
+                })}
+              </ul>
+            </nav>
 
             <div className="hidden lg:flex lg:items-center lg:justify-center">
               <div className="relative aspect-[3/4] h-[min(68svh,40rem)] max-w-full overflow-hidden bg-paper-2">

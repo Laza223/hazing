@@ -175,6 +175,12 @@ export default async function ProductoPage({
             />
           </div>
 
+          {product.description && (
+            <p className="mt-8 whitespace-pre-line text-sm leading-relaxed text-ink-2">
+              {product.description}
+            </p>
+          )}
+
           <div className="mt-8">
             <PdpAccordions />
           </div>

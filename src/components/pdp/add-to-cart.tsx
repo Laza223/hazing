@@ -150,6 +150,7 @@ export function AddToCart({
         }}
         sizes={sizeOptions}
         showSize={showSize}
+        singleSizeLabel={showSize ? null : (variants[0]?.size ?? "Único")}
         selectedSize={selectedSize}
         onSizeChange={(v) => {
           setSelectedSize(v);

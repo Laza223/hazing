@@ -16,6 +16,8 @@ export interface VariantSelectorProps {
   showSize: boolean;
   selectedSize: string | null;
   onSizeChange: (value: string) => void;
+  /** Talle único: se muestra como dato, sin selector. */
+  singleSizeLabel?: string | null;
 }
 
 /**
@@ -23,7 +25,7 @@ export interface VariantSelectorProps {
  * (docs/spec/05-direccion-arte.md §7, docs/spec/06-storefront.md §3.5): color
  * primero (swatches + nombre en texto), talle después (`SizeSelector`,
  * ordenado por `sortSizes()`). Producto de un solo color → sin eje de color;
- * `one_size` → sin eje de talle. Puramente presentacional: la selección, el
+ * `one_size` → sin selector, solo el talle como texto. Puramente presentacional: la selección, el
  * cómputo de disponibilidad y el precio los resuelve `AddToCart` (el padre).
  */
 export function VariantSelector({
@@ -35,8 +37,10 @@ export function VariantSelector({
   showSize,
   selectedSize,
   onSizeChange,
+  singleSizeLabel = null,
 }: VariantSelectorProps) {
-  if (!showColor && !showSize) return null;
+  const showSingleSize = !showSize && !!singleSizeLabel;
+  if (!showColor && !showSize && !showSingleSize) return null;
 
   return (
     <div className="space-y-5">
@@ -62,6 +66,14 @@ export function VariantSelector({
             value={selectedSize}
             onChange={onSizeChange}
           />
+        </div>
+      )}
+      {showSingleSize && (
+        <div>
+          <p className="tracking-caps-sm mb-2 text-xs uppercase text-ink-2">
+            Talle
+          </p>
+          <p className="text-sm text-ink">{singleSizeLabel}</p>
         </div>
       )}
     </div>
