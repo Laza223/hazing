@@ -1,6 +1,7 @@
 import { formatARS } from "@/lib/money";
 import { businessInfo } from "@/lib/legal/business-info";
 import { appBaseUrl } from "@/lib/seo/url";
+import { orderDiscountLabel } from "@/lib/shipping/pickup";
 
 /** Escapa HTML para interpolar texto del usuario en cuerpos de email (anti-inyección). */
 function escapeHtml(s: string): string {
@@ -28,6 +29,8 @@ export interface OrderEmailData {
   discountTotal: number;
   total: number;
   shippingMethod: string;
+  /** Para nombrar el descuento: en retiro sin cupón es el 36% de showroom. */
+  hasCoupon?: boolean;
   /** Solo para `retiro`: punto de retiro (de Ajustes). Va únicamente en el mail a la clienta. */
   pickupAddress?: string | null;
   oversoldLines?: Array<{ name: string }>;
@@ -77,10 +80,15 @@ function itemsText(items: OrderEmailItem[]): string {
     .map((it) => `- ${itemLabel(it)} × ${it.qty}: ${formatARS(it.lineTotal)}`)
     .join("\n");
 }
+function discountLabel(d: OrderEmailData): string {
+  return orderDiscountLabel(d.shippingMethod, d.hasCoupon ?? false);
+}
 function totalsBlock(d: OrderEmailData): string {
   const rows = [
     ["Subtotal", d.subtotal],
-    ...(d.discountTotal > 0 ? [["Descuento", -d.discountTotal] as const] : []),
+    ...(d.discountTotal > 0
+      ? [[discountLabel(d), -d.discountTotal] as const]
+      : []),
     // Con retiro no hay envío: la línea "Entrega: Retiro…" ya lo dice.
     ...(d.shippingMethod === "retiro"
       ? []
@@ -118,7 +126,7 @@ export function orderConfirmationEmail(
     <p>Cualquier duda, escribinos por WhatsApp.</p>
     <p style="font-size:12px;color:#737373">${retractionLine} <a href="${retractionUrl}" style="color:${INK}">${retractionUrl}</a></p>
   </div>`;
-  const text = `Hazing\n\nHola ${d.contactName}. Recibimos tu pedido ${d.orderNumber}\n\n${itemsText(d.items)}\n\nSubtotal: ${formatARS(d.subtotal)}\nDescuento: ${formatARS(d.discountTotal)}${d.shippingMethod === "retiro" ? "" : `\nEnvío: ${formatARS(d.shippingCost)}`}\nTotal: ${formatARS(d.total)}\nEntrega: ${SHIPPING_METHOD_LABEL[d.shippingMethod] ?? d.shippingMethod}${pickupText(d)}\n\n${retractionLine} ${retractionUrl}`;
+  const text = `Hazing\n\nHola ${d.contactName}. Recibimos tu pedido ${d.orderNumber}\n\n${itemsText(d.items)}\n\nSubtotal: ${formatARS(d.subtotal)}\n${discountLabel(d)}: ${formatARS(d.discountTotal)}${d.shippingMethod === "retiro" ? "" : `\nEnvío: ${formatARS(d.shippingCost)}`}\nTotal: ${formatARS(d.total)}\nEntrega: ${SHIPPING_METHOD_LABEL[d.shippingMethod] ?? d.shippingMethod}${pickupText(d)}\n\n${retractionLine} ${retractionUrl}`;
   return { subject, html, text };
 }
 

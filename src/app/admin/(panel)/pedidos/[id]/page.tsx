@@ -13,6 +13,7 @@ import { STATUS_LABELS } from "@/lib/admin/orders/service";
 import { OrderStatusControl } from "../order-status-control";
 import { DispatchForm } from "../dispatch-form";
 import { cn } from "@/lib/utils";
+import { orderDiscountLabel } from "@/lib/shipping/pickup";
 
 export const dynamic = "force-dynamic";
 
@@ -175,7 +176,11 @@ export default async function PedidoDetallePage({
             {toNumber(order.discountTotal) > 0 ? (
               <div className="flex justify-between">
                 <dt className="text-ink-3">
-                  Descuento{order.coupon ? ` (${order.coupon.code})` : ""}
+                  {orderDiscountLabel(
+                    order.shippingMethod,
+                    Boolean(order.coupon),
+                  )}
+                  {order.coupon ? ` (${order.coupon.code})` : ""}
                 </dt>
                 <dd className="tabular-nums">
                   −{formatARS(toNumber(order.discountTotal))}

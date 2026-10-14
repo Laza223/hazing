@@ -9,6 +9,7 @@ import {
   quoteShipping as realQuoteShipping,
   type ShippingQuote,
 } from "@/lib/shipping/quote";
+import { pickupDiscount } from "@/lib/shipping/pickup";
 import { shippingQuoteDeps } from "@/lib/orders/checkout-data";
 import type { CartLine } from "@/lib/cart/types";
 
@@ -127,10 +128,13 @@ export async function createCheckout(
 
   // --- Cupón (misma evaluación que el carrito). Si no aplica se corta: nunca cobrar
   // distinto de lo que la clienta vio. ---
-  let discount = 0;
+  // Retiro en showroom: 36% sobre productos que reemplaza al cupón (no se suman,
+  // y el cupón no se consume). Ver src/lib/shipping/pickup.ts.
+  const isPickup = input.shippingMethod === "retiro";
+  let discount = isPickup ? pickupDiscount(subtotal) : 0;
   let freeShippingByCoupon = false;
   let couponId: string | null = null;
-  if (input.couponCode) {
+  if (input.couponCode && !isPickup) {
     const ev = await evaluateCoupon(deps.db, {
       code: input.couponCode,
       lines: cartLines,

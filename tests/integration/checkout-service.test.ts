@@ -220,6 +220,54 @@ describe("createCheckout", () => {
     expect(orderData.total).toBe(6400);
   });
 
+  it("retiro en showroom: 36% sobre productos, sin envío, una sola línea en MP", async () => {
+    const quoteShipping = vi.fn(async () => ({
+      cost: 0,
+      zoneId: null,
+      freeShipping: true,
+      source: "zone" as const,
+    }));
+    const { deps } = makeDeps({ quoteShipping });
+    await createCheckout({ ...baseInput, shippingMethod: "retiro" }, deps);
+    const orderData = (deps as any)._tx.order.create.mock.calls[0][0].data;
+    expect(orderData.subtotal).toBe(6400);
+    expect(orderData.discountTotal).toBe(2304); // 6400 × 0,36
+    expect(orderData.shippingCost).toBe(0);
+    expect(orderData.total).toBe(4096);
+    expect(orderData.couponId).toBeNull();
+    const items = (deps.createPreference as any).mock.calls[0][0].items;
+    expect(items).toEqual([expect.objectContaining({ unit_price: 4096 })]);
+  });
+
+  it("retiro con cupón: gana el 36%, el cupón no se registra ni se evalúa", async () => {
+    const { deps } = makeDeps();
+    await createCheckout(
+      { ...baseInput, shippingMethod: "retiro", couponCode: "VENCIDO" },
+      deps,
+    );
+    const orderData = (deps as any)._tx.order.create.mock.calls[0][0].data;
+    expect(orderData.discountTotal).toBe(2304);
+    expect(orderData.couponId).toBeNull();
+    expect((deps.db as any).coupon.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("retiro redondea el 36% a centavos", async () => {
+    const { deps } = makeDeps();
+    await createCheckout(
+      {
+        ...baseInput,
+        shippingMethod: "retiro",
+        lines: [
+          checkoutLine({ line: cartLine({ unitPrice: 999.99, qty: 1 }) }),
+        ],
+      },
+      deps,
+    );
+    const orderData = (deps as any)._tx.order.create.mock.calls[0][0].data;
+    expect(orderData.discountTotal).toBe(360); // 359,9964
+    expect(orderData.total).toBe(3139.99); // 999,99 − 360 + 2500 del quote fake
+  });
+
   it("rechaza carrito vacío", async () => {
     const { deps } = makeDeps();
     await expect(

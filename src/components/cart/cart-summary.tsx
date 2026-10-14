@@ -9,6 +9,8 @@ export interface CartSummaryProps {
   shipping?: { cost: number; free: boolean } | null;
   /** Retiro en Luján: la línea dice "Retiro: Sin costo" en vez de "Envío: Gratis". */
   pickup?: boolean;
+  /** Texto de la línea de descuento (default "Descuento"). */
+  discountLabel?: string;
 }
 
 /**
@@ -22,6 +24,7 @@ export function CartSummary({
   total,
   shipping,
   pickup = false,
+  discountLabel = "Descuento",
 }: CartSummaryProps) {
   return (
     <dl className="space-y-2 text-sm">
@@ -31,7 +34,7 @@ export function CartSummary({
       </div>
       {discount > 0 && (
         <div className="flex justify-between">
-          <dt className="text-ink-2">Descuento</dt>
+          <dt className="text-ink-2">{discountLabel}</dt>
           <dd className="tabular-nums text-ink">−{formatPrice(discount)}</dd>
         </div>
       )}
