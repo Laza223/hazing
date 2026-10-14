@@ -17,7 +17,7 @@ export const HERO_EYEBROW = "Nueva temporada";
 
 export const HOME_STORY = {
   eyebrow: "La marca",
-  title: "De Luján, para tu vestidor.",
+  title: "Tu placard pidió Hazing.",
   body: "Una selección de prendas en tendencia y básicos que vas a querer usar una y otra vez.",
   linkLabel: "Conocé la tienda",
 } as const;
