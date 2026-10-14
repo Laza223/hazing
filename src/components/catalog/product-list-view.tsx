@@ -13,6 +13,7 @@ import type { Crumb } from "@/lib/catalog/categories";
 type RawSearchParams = Record<string, string | string[] | undefined>;
 
 const FILTER_PARAMS = [
+  "q",
   "min",
   "max",
   "oferta",
@@ -67,6 +68,8 @@ export function ProductListView({
 }: ProductListViewProps) {
   // Mismos params que lee ActiveFilters: sin ninguno, "quitar filtros" no aplica.
   const hasFilters = FILTER_PARAMS.some((key) => rawParams[key] !== undefined);
+  const rawSearch = rawParams.q;
+  const search = (Array.isArray(rawSearch) ? rawSearch[0] : rawSearch)?.trim();
   return (
     <section className="mx-auto max-w-[1600px] space-y-6 px-4 py-10 md:px-10 md:py-14 lg:px-16">
       {breadcrumbs && breadcrumbs.length > 0 && (
@@ -76,7 +79,7 @@ export function ProductListView({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-2">
           <h1 className="font-display text-3xl text-ink md:text-4xl">
-            {title}
+            {search ? `Resultados para «${search}»` : title}
           </h1>
           <p className="text-sm text-ink-3">
             {result.total} {result.total === 1 ? "producto" : "productos"}
@@ -106,7 +109,11 @@ export function ProductListView({
         </>
       ) : (
         <div className="border border-line-2 bg-paper-2 px-6 py-16 text-center">
-          <p className="text-sm text-ink">No encontramos productos.</p>
+          <p className="text-sm text-ink">
+            {search
+              ? `No encontramos productos con «${search}».`
+              : "No encontramos productos."}
+          </p>
           {hasFilters && (
             <p className="mt-1 text-xs text-ink-3">
               Probá quitar algún filtro.

@@ -8,6 +8,7 @@ import { Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CategoryNode } from "@/lib/catalog/categories";
 import { FullscreenMenu } from "@/components/layout/fullscreen-menu";
+import { SearchDialog } from "@/components/layout/search-dialog";
 import { Wordmark } from "@/components/brand/wordmark";
 import { useCartUI } from "@/components/cart/cart-provider";
 
@@ -89,6 +90,7 @@ export function Header({ categories }: { categories: CategoryNode[] }) {
         </Link>
 
         <div className="flex items-center gap-5">
+          <SearchDialog />
           {/* Solo desde md: a 375px choca con el wordmark centrado. En mobile
               "Cuenta" vive en el menú fullscreen. */}
           <Link
