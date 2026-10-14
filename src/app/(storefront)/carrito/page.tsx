@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { getCartView } from "@/lib/cart/cart-view";
+import { hasRedeemableCoupons } from "@/lib/coupons/availability";
 import { getEffectivePrice } from "@/lib/catalog/pricing";
 import { round2 } from "@/lib/money";
 import { productImageUrl } from "@/lib/images";
@@ -21,8 +22,10 @@ export const metadata: Metadata = { title: "Tu carrito" };
  * "Finalizar compra" lleva a `/checkout` (Fase 8).
  */
 export default async function CarritoPage() {
-  const { cart, subtotal, count, threshold, coupon, couponRejected } =
-    await getCartView();
+  const [
+    { cart, subtotal, count, threshold, coupon, couponRejected },
+    couponsOn,
+  ] = await Promise.all([getCartView(), hasRedeemableCoupons()]);
 
   if (!cart || count === 0) {
     return (
@@ -67,10 +70,13 @@ export default async function CarritoPage() {
 
         <aside className="space-y-6 lg:col-span-5">
           <FreeShippingLine subtotal={subtotal} threshold={threshold} />
-          <CouponForm
-            applied={coupon?.code ?? null}
-            rejected={couponRejected}
-          />
+          {/* Un cupón ya aplicado se sigue mostrando para poder quitarlo. */}
+          {(couponsOn || coupon || couponRejected) && (
+            <CouponForm
+              applied={coupon?.code ?? null}
+              rejected={couponRejected}
+            />
+          )}
           <CartSummary subtotal={subtotal} discount={discount} total={total} />
           <Link href="/checkout" className={cn(buttonVariants(), "w-full")}>
             Finalizar compra

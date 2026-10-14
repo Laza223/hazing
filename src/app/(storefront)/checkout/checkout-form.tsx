@@ -73,6 +73,8 @@ interface Props {
   couponCode: string | null;
   couponRejected?: { reason: string; permanent: boolean } | null;
   couponFreeShipping: boolean;
+  /** false si no hay cupones activos ni uno aplicado (ver hasRedeemableCoupons). */
+  showCouponForm?: boolean;
   items: ItemView[];
   defaultName?: string;
   defaultEmail?: string;
@@ -86,6 +88,7 @@ export function CheckoutForm({
   couponCode,
   couponRejected = null,
   couponFreeShipping,
+  showCouponForm = true,
   items,
   defaultName = "",
   defaultEmail = "",
@@ -484,7 +487,9 @@ export function CheckoutForm({
             </li>
           ))}
         </ul>
-        <CouponForm applied={couponCode} rejected={couponRejected} />
+        {showCouponForm && (
+          <CouponForm applied={couponCode} rejected={couponRejected} />
+        )}
         {isPickup && couponCode && (
           <p className="text-xs text-ink-2">
             El cupón no se suma con el 36% de retiro en el showroom: se aplica
