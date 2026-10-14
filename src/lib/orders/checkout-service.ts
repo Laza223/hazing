@@ -128,7 +128,7 @@ export async function createCheckout(
 
   // --- Cupón (misma evaluación que el carrito). Si no aplica se corta: nunca cobrar
   // distinto de lo que la clienta vio. ---
-  // Retiro en showroom: 36% sobre productos que reemplaza al cupón (no se suman,
+  // Retiro en showroom: 15% sobre productos que reemplaza al cupón (no se suman,
   // y el cupón no se consume). Ver src/lib/shipping/pickup.ts.
   const isPickup = input.shippingMethod === "retiro";
   let discount = isPickup ? pickupDiscount(subtotal) : 0;
