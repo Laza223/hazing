@@ -220,7 +220,7 @@ describe("createCheckout", () => {
     expect(orderData.total).toBe(6400);
   });
 
-  it("retiro en showroom: 36% sobre productos, sin envío, una sola línea en MP", async () => {
+  it("retiro en showroom: 15% sobre productos, sin envío, una sola línea en MP", async () => {
     const quoteShipping = vi.fn(async () => ({
       cost: 0,
       zoneId: null,
@@ -231,27 +231,27 @@ describe("createCheckout", () => {
     await createCheckout({ ...baseInput, shippingMethod: "retiro" }, deps);
     const orderData = (deps as any)._tx.order.create.mock.calls[0][0].data;
     expect(orderData.subtotal).toBe(6400);
-    expect(orderData.discountTotal).toBe(2304); // 6400 × 0,36
+    expect(orderData.discountTotal).toBe(960); // 6400 × 0,15
     expect(orderData.shippingCost).toBe(0);
-    expect(orderData.total).toBe(4096);
+    expect(orderData.total).toBe(5440);
     expect(orderData.couponId).toBeNull();
     const items = (deps.createPreference as any).mock.calls[0][0].items;
-    expect(items).toEqual([expect.objectContaining({ unit_price: 4096 })]);
+    expect(items).toEqual([expect.objectContaining({ unit_price: 5440 })]);
   });
 
-  it("retiro con cupón: gana el 36%, el cupón no se registra ni se evalúa", async () => {
+  it("retiro con cupón: gana el 15%, el cupón no se registra ni se evalúa", async () => {
     const { deps } = makeDeps();
     await createCheckout(
       { ...baseInput, shippingMethod: "retiro", couponCode: "VENCIDO" },
       deps,
     );
     const orderData = (deps as any)._tx.order.create.mock.calls[0][0].data;
-    expect(orderData.discountTotal).toBe(2304);
+    expect(orderData.discountTotal).toBe(960);
     expect(orderData.couponId).toBeNull();
     expect((deps.db as any).coupon.findUnique).not.toHaveBeenCalled();
   });
 
-  it("retiro redondea el 36% a centavos", async () => {
+  it("retiro redondea el 15% a centavos", async () => {
     const { deps } = makeDeps();
     await createCheckout(
       {
@@ -264,8 +264,8 @@ describe("createCheckout", () => {
       deps,
     );
     const orderData = (deps as any)._tx.order.create.mock.calls[0][0].data;
-    expect(orderData.discountTotal).toBe(360); // 359,9964
-    expect(orderData.total).toBe(3139.99); // 999,99 − 360 + 2500 del quote fake
+    expect(orderData.discountTotal).toBe(150); // 149,9985
+    expect(orderData.total).toBe(3349.99); // 999,99 − 150 + 2500 del quote fake
   });
 
   it("rechaza carrito vacío", async () => {

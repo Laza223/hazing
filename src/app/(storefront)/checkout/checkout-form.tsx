@@ -46,8 +46,8 @@ const DELIVERY_OPTIONS: Array<{
   },
   {
     method: "retiro",
-    label: "Retiro en el showroom (Luján) — 36% off",
-    help: "36% de descuento en los productos (no se suma con cupones). Te mandamos la dirección por mail con la confirmación del pago. Coordinamos día y hora por WhatsApp.",
+    label: "Retiro en el showroom (Luján) — 15% off",
+    help: "15% de descuento en los productos (no se suma con cupones). Te mandamos la dirección por mail con la confirmación del pago. Coordinamos día y hora por WhatsApp.",
   },
 ];
 
@@ -149,7 +149,7 @@ export function CheckoutForm({
   const shipping = isPickup
     ? { cost: 0, free: true }
     : (options?.[method] ?? null);
-  // Misma regla que createCheckout: en retiro el 36% reemplaza al cupón.
+  // Misma regla que createCheckout: en retiro el 15% reemplaza al cupón.
   const appliedDiscount = isPickup ? pickupDiscount(subtotal) : discount;
   const shippingCost =
     couponFreeShipping && !isPickup
@@ -487,7 +487,7 @@ export function CheckoutForm({
         <CouponForm applied={couponCode} rejected={couponRejected} />
         {isPickup && couponCode && (
           <p className="text-xs text-ink-2">
-            El cupón no se suma con el 36% de retiro en el showroom: se aplica
+            El cupón no se suma con el 15% de retiro en el showroom: se aplica
             el descuento de retiro.
           </p>
         )}
