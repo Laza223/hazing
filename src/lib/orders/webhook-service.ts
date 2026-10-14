@@ -314,6 +314,7 @@ export async function processWebhook(
         discountTotal: toNumber(order.discountTotal),
         total: toNumber(order.total),
         shippingMethod: order.shippingMethod,
+        hasCoupon: Boolean(order.couponId),
         pickupAddress:
           order.shippingMethod === "retiro" && deps.getPickupAddress
             ? await deps.getPickupAddress()

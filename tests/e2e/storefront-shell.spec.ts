@@ -143,7 +143,7 @@ test.describe("home", () => {
     // fotos, así que no se exige acá.
 
     await expect(
-      page.getByRole("heading", { name: "De Luján, para tu vestidor." }),
+      page.getByRole("heading", { name: "Tu placard pidió Hazing." }),
     ).toBeAttached();
     await expect(page.getByRole("region", { name: "Lookbook" })).toBeAttached();
     await expect(

@@ -4,6 +4,7 @@ import { requireCustomer } from "@/lib/customer/auth";
 import { customerOrderWhere } from "@/lib/customer/orders";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/money";
+import { orderDiscountLabel } from "@/lib/shipping/pickup";
 
 const STATUS_LABEL: Record<string, string> = {
   pending_payment: "Pago pendiente",
@@ -82,7 +83,12 @@ export default async function PedidoDetallePage({
         </div>
         {Number(order.discountTotal) > 0 && (
           <div className="flex justify-between">
-            <span>Descuento</span>
+            <span>
+              {orderDiscountLabel(
+                order.shippingMethod,
+                Boolean(order.couponId),
+              )}
+            </span>
             <span className="tabular-nums">
               -{formatPrice(Number(order.discountTotal))}
             </span>

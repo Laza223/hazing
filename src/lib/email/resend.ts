@@ -9,6 +9,8 @@ export interface SendEmailDeps {
   fetch?: typeof fetch;
   apiKey?: string;
   defaultFrom?: string;
+  /** Casilla a la que llegan las respuestas de la clienta (ej. el Gmail de la dueña). */
+  replyTo?: string;
 }
 export interface SendEmailResult {
   id: string | null;
@@ -48,6 +50,7 @@ export async function sendEmail(
     );
     return { id: null, logged: true };
   }
+  const replyTo = deps.replyTo ?? process.env.RESEND_REPLY_TO;
   const fetchFn = deps.fetch ?? fetch;
   const res = await fetchFn(RESEND_API, {
     method: "POST",
@@ -61,6 +64,7 @@ export async function sendEmail(
       subject: input.subject,
       html: input.html,
       text: input.text,
+      ...(replyTo ? { reply_to: replyTo } : {}),
     }),
   });
   if (!res.ok)

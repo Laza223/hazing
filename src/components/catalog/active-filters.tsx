@@ -18,6 +18,8 @@ export function ActiveFilters() {
   const searchParams = useSearchParams();
 
   const filters: ActiveFilter[] = [];
+  const q = searchParams.get("q")?.trim();
+  if (q) filters.push({ key: "q", value: q, label: `Búsqueda: «${q}»` });
   const min = searchParams.get("min");
   const max = searchParams.get("max");
   if (min) filters.push({ key: "min", value: min, label: `Desde $${min}` });
