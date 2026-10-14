@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { getCartView } from "@/lib/cart/cart-view";
-import { hasRedeemableCoupons } from "@/lib/coupons/availability";
 import { getCustomer } from "@/lib/customer/auth";
 import { getEffectivePrice } from "@/lib/catalog/pricing";
 import { prisma } from "@/lib/prisma";
@@ -17,8 +16,7 @@ export const metadata: Metadata = { title: "Checkout" };
  * sin cuenta asociada.
  */
 export default async function CheckoutPage() {
-  const [{ cart, count, subtotal, coupon, couponRejected }, couponsOn] =
-    await Promise.all([getCartView(), hasRedeemableCoupons()]);
+  const { cart, count, subtotal, coupon, couponRejected } = await getCartView();
   if (!cart || count === 0) redirect("/carrito");
 
   const customer = await getCustomer();
@@ -42,7 +40,6 @@ export default async function CheckoutPage() {
         discount={coupon?.discount ?? 0}
         couponCode={coupon?.code ?? null}
         couponRejected={couponRejected}
-        showCouponForm={couponsOn || Boolean(coupon) || Boolean(couponRejected)}
         couponFreeShipping={coupon?.freeShipping ?? false}
         defaultName={customer?.name ?? ""}
         defaultEmail={customer?.email ?? ""}
