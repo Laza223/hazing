@@ -102,6 +102,7 @@ export function CheckoutForm({
   const [street, setStreet] = useState(defaultAddress?.street ?? "");
   const [number, setNumber] = useState(defaultAddress?.number ?? "");
   const [floorApt, setFloorApt] = useState(defaultAddress?.floorApt ?? "");
+  const [dni, setDni] = useState("");
   const [city, setCity] = useState(defaultAddress?.city ?? "");
   const [notes, setNotes] = useState(defaultAddress?.notes ?? "");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -126,6 +127,7 @@ export function CheckoutForm({
   const streetRef = useRef<HTMLInputElement>(null);
   const numberRef = useRef<HTMLInputElement>(null);
   const floorAptRef = useRef<HTMLInputElement>(null);
+  const dniRef = useRef<HTMLInputElement>(null);
   const notesRef = useRef<HTMLTextAreaElement>(null);
   const termsRef = useRef<HTMLInputElement>(null);
   const fieldRefs: Record<
@@ -141,6 +143,7 @@ export function CheckoutForm({
     street: streetRef,
     number: numberRef,
     floorApt: floorAptRef,
+    dni: dniRef,
     notes: notesRef,
     acceptedTerms: termsRef,
   };
@@ -193,6 +196,7 @@ export function CheckoutForm({
       street,
       number,
       floorApt,
+      dni,
       notes,
       acceptedTerms,
     });
@@ -219,7 +223,7 @@ export function CheckoutForm({
         contactEmail: email,
         contactPhone: phone,
         shippingMethod: method,
-        address: { cp, province, street, number, floorApt, city, notes },
+        address: { cp, province, street, number, floorApt, dni, city, notes },
         acceptedTerms,
       });
       // analytics: purchase (PostHog, Fase 10 — se dispara recién en /checkout/gracias
@@ -435,6 +439,24 @@ export function CheckoutForm({
                 onChange={(e) => setFloorApt(e.target.value)}
                 error={fieldErrors.floorApt}
               />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <TextInput
+                ref={dniRef}
+                id="checkout-dni"
+                label="DNI de quien recibe"
+                value={dni}
+                onChange={(e) =>
+                  setDni(e.target.value.replace(/[^\d.]/g, "").slice(0, 10))
+                }
+                inputMode="numeric"
+                aria-describedby="checkout-dni-help"
+                error={fieldErrors.dni}
+              />
+              <p id="checkout-dni-help" className="text-xs text-ink-3">
+                Lo pide la empresa de envío para entregar el paquete.
+              </p>
             </div>
 
             <div className="flex flex-col gap-1">

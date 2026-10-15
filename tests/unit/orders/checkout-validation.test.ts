@@ -3,6 +3,7 @@ import {
   validateCheckoutForm,
   validateCheckoutFormFields,
   isShippingMethod,
+  normalizeDni,
   type CheckoutFormInput,
 } from "@/lib/orders/checkout-validation";
 
@@ -16,6 +17,7 @@ const valid: CheckoutFormInput = {
   street: "Calle",
   number: "123",
   floorApt: "",
+  dni: "30123456",
   notes: "",
   acceptedTerms: true,
 };
@@ -165,6 +167,38 @@ describe("validateCheckoutFormFields por método de entrega", () => {
       acceptedTerms: false,
     });
     expect(Object.keys(e).sort()).toEqual(["acceptedTerms", "contactPhone"]);
+  });
+});
+
+describe("DNI de quien recibe", () => {
+  it("es obligatorio en envío a domicilio y a sucursal", () => {
+    for (const shippingMethod of ["domicilio", "sucursal"] as const) {
+      expect(
+        validateCheckoutFormFields({ ...valid, shippingMethod, dni: "" }).dni,
+      ).toBeDefined();
+    }
+  });
+
+  it("acepta 7 u 8 números, con o sin puntos", () => {
+    for (const dni of ["1234567", "30123456", "30.123.456"])
+      expect(validateCheckoutFormFields({ ...valid, dni }).dni).toBeUndefined();
+    for (const dni of ["123456", "123456789", "30a23456"])
+      expect(validateCheckoutFormFields({ ...valid, dni }).dni).toBeDefined();
+  });
+
+  it("no se pide en retiro", () => {
+    expect(
+      validateCheckoutFormFields({
+        ...valid,
+        shippingMethod: "retiro",
+        dni: "",
+      }).dni,
+    ).toBeUndefined();
+  });
+
+  it("normalizeDni saca puntos, espacios y guiones", () => {
+    expect(normalizeDni("30.123.456")).toBe("30123456");
+    expect(normalizeDni(" 30 123-456 ")).toBe("30123456");
   });
 });
 

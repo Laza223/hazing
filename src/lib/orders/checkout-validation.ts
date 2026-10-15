@@ -25,6 +25,8 @@ export interface CheckoutFormInput {
   street: string;
   number: string;
   floorApt?: string;
+  /** DNI de quien recibe: lo pide la empresa de envío (no se pide en retiro). */
+  dni?: string;
   notes?: string;
   acceptedTerms: boolean;
 }
@@ -39,6 +41,7 @@ export type CheckoutFormField =
   | "street"
   | "number"
   | "floorApt"
+  | "dni"
   | "notes"
   | "acceptedTerms";
 
@@ -46,6 +49,12 @@ export type CheckoutFormErrors = Partial<Record<CheckoutFormField, string>>;
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const CP_RE = /^\d{4}$/;
+const DNI_RE = /^\d{7,8}$/;
+
+/** Saca puntos, espacios y guiones: "30.123.456" → "30123456". */
+export function normalizeDni(value: string): string {
+  return value.replace(/[.\s-]/g, "");
+}
 
 const MAX_LENGTHS = {
   contactName: 120,
@@ -97,6 +106,9 @@ export function validateCheckoutFormFields(
     if (!input.number.trim()) errors.number = "Ingresá el número.";
     else if (input.number.length > MAX_LENGTHS.number)
       errors.number = "El número es demasiado largo.";
+
+    if (!DNI_RE.test(normalizeDni(input.dni ?? "")))
+      errors.dni = "Ingresá el DNI de quien recibe (7 u 8 números).";
   }
 
   if (input.floorApt && input.floorApt.length > MAX_LENGTHS.floorApt)
@@ -123,6 +135,7 @@ export const CHECKOUT_FORM_FIELD_ORDER: CheckoutFormField[] = [
   "street",
   "number",
   "floorApt",
+  "dni",
   "notes",
   "acceptedTerms",
 ];

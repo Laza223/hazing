@@ -34,6 +34,7 @@ import {
 } from "@/lib/orders/checkout-service";
 import {
   validateCheckoutForm,
+  normalizeDni,
   isShippingMethod,
   SHIPPING_METHODS,
   type CheckoutFormInput,
@@ -267,6 +268,7 @@ export async function createCheckoutAction(input: {
     street: string;
     number: string;
     floorApt?: string | null;
+    dni?: string | null;
     city: string;
     notes?: string | null;
   };
@@ -287,6 +289,7 @@ export async function createCheckoutAction(input: {
     street: input.address.street,
     number: input.address.number,
     floorApt: input.address.floorApt ?? "",
+    dni: input.address.dni ?? "",
     notes: input.address.notes ?? "",
     acceptedTerms: input.acceptedTerms,
   };
@@ -316,7 +319,10 @@ export async function createCheckoutAction(input: {
         address:
           input.shippingMethod === "retiro"
             ? { cp: "", province: null }
-            : input.address,
+            : {
+                ...input.address,
+                dni: normalizeDni(input.address.dni ?? ""),
+              },
         lines,
         couponCode,
         cartId,

@@ -30,7 +30,11 @@ export default function PrivacidadPage() {
       <h2>2. Datos que recolectamos</h2>
       <ul>
         <li>Datos de contacto: nombre, email, teléfono.</li>
-        <li>Datos de pedido y envío: dirección, localidad, código postal.</li>
+        <li>
+          Datos de pedido y envío: dirección, localidad, código postal y, en los
+          envíos, el DNI de quien recibe (lo pide la empresa de envío para
+          entregar el paquete; no lo usamos para nada más).
+        </li>
         <li>
           Datos de navegación: páginas vistas y eventos de uso (analítica).
         </li>

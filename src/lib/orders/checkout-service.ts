@@ -26,6 +26,7 @@ export interface CheckoutAddress {
   street?: string;
   number?: string;
   floorApt?: string | null;
+  dni?: string | null;
   city?: string;
   notes?: string | null;
 }

@@ -50,6 +50,8 @@ interface AddressSnapshot {
   street?: string;
   number?: string;
   floorApt?: string | null;
+  /** Pedidos desde el 2026-10-15; los anteriores no lo tienen. */
+  dni?: string | null;
   city?: string;
   notes?: string | null;
 }
@@ -262,6 +264,11 @@ export default async function PedidoDetallePage({
                 CP de referencia: {addr.cp ?? "—"}
               </p>
             )}
+            {order.shippingMethod !== "retiro" && addr.dni ? (
+              <p className="mt-1 text-sm tabular-nums text-ink-3">
+                DNI de quien recibe: {addr.dni}
+              </p>
+            ) : null}
             <p className="mt-2 text-sm tabular-nums text-ink-3">
               Costo de envío: {formatARS(toNumber(order.shippingCost))}
             </p>
