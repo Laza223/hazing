@@ -56,7 +56,10 @@ export async function GET(request: NextRequest) {
     });
     if (!error) {
       if (type !== "recovery") await mergeCartForCurrentCustomer();
-      return NextResponse.redirect(`${origin}${next}`);
+      // Alta recién confirmada sin destino propio → bienvenida en la cuenta.
+      const destination =
+        type === "signup" && next === "/cuenta" ? "/cuenta?bienvenida=1" : next;
+      return NextResponse.redirect(`${origin}${destination}`);
     }
   }
   return NextResponse.redirect(`${origin}/ingresar?error=auth`);
