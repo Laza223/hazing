@@ -9,10 +9,10 @@ import {
 import { shipmentDispatchedEmail } from "@/lib/email/templates";
 
 const input = {
-  carrier: "Via Cargo",
+  carrier: "Vía Cargo",
   trackingNumber: "VC123",
-  trackingUrl: "https://viacargo.example/track/VC123",
 };
+const VIA_CARGO_URL = "https://viacargo.com.ar/seguimiento-de-envio/";
 
 function setup(over: Partial<DispatchOrder> = {}, count = 1) {
   const order: DispatchOrder = {
@@ -55,18 +55,16 @@ describe("parseDispatchInput", () => {
     expect(parseDispatchInput({ ...input, carrier: " " }).ok).toBe(false);
     expect(parseDispatchInput({ ...input, trackingNumber: "" }).ok).toBe(false);
   });
-  it("el link es opcional pero debe ser https", () => {
-    expect(parseDispatchInput({ ...input, trackingUrl: "" }).ok).toBe(true);
-    expect(parseDispatchInput({ ...input, trackingUrl: null }).ok).toBe(true);
-    expect(
-      parseDispatchInput({ ...input, trackingUrl: "http://x.com" }).ok,
-    ).toBe(false);
-    expect(
-      parseDispatchInput({ ...input, trackingUrl: "javascript:alert(1)" }).ok,
-    ).toBe(false);
-    expect(parseDispatchInput({ ...input, trackingUrl: "no es url" }).ok).toBe(
+  it("solo acepta empresas de la lista y el link sale de la empresa", () => {
+    expect(parseDispatchInput({ ...input, carrier: "Via cargo" }).ok).toBe(
       false,
     );
+    expect(parseDispatchInput({ ...input, carrier: " OCA " })).toEqual({
+      ok: true,
+      carrier: "OCA",
+      trackingNumber: "VC123",
+      trackingUrl: "https://www.oca.com.ar/Busquedas/Seguimientos",
+    });
   });
 });
 
@@ -84,34 +82,33 @@ describe("markOrderDispatched", () => {
       create: {
         orderId: "o1",
         cost: "7000.50",
-        carrier: "Via Cargo",
+        carrier: "Vía Cargo",
         trackingNumber: "VC123",
-        trackingUrl: "https://viacargo.example/track/VC123",
+        trackingUrl: VIA_CARGO_URL,
         status: "dispatched",
       },
       update: {
-        carrier: "Via Cargo",
+        carrier: "Vía Cargo",
         trackingNumber: "VC123",
-        trackingUrl: "https://viacargo.example/track/VC123",
+        trackingUrl: VIA_CARGO_URL,
         status: "dispatched",
       },
     });
     expect(sendEmail).toHaveBeenCalledTimes(1);
     const mail = sendEmail.mock.calls[0][0];
     expect(mail.to).toBe("ana@example.com");
-    expect(mail.html).toContain("Via Cargo");
+    expect(mail.html).toContain("Vía Cargo");
     expect(mail.html).toContain("VC123");
-    expect(mail.html).toContain("https://viacargo.example/track/VC123");
+    expect(mail.html).toContain(VIA_CARGO_URL);
   });
 
-  it("desde preparing también funciona; link vacío se guarda como null", async () => {
+  it("desde preparing también funciona", async () => {
     const { deps, tx } = setup({ status: "preparing" });
-    await markOrderDispatched("o1", { ...input, trackingUrl: "" }, deps);
+    await markOrderDispatched("o1", input, deps);
     expect(tx.order.updateMany).toHaveBeenCalledWith({
       where: { id: "o1", status: "preparing" },
       data: { status: "shipped" },
     });
-    expect(tx.shipment.upsert.mock.calls[0][0].update.trackingUrl).toBeNull();
   });
 
   it.each(["pending_payment", "delivered", "cancelled", "refunded"] as const)(
@@ -195,7 +192,7 @@ describe("shipmentDispatchedEmail", () => {
     const m = shipmentDispatchedEmail({
       orderNumber: "HZG-1",
       contactName: "<b>Ana</b>",
-      carrier: "Via Cargo",
+      carrier: "Vía Cargo",
       trackingNumber: "X1",
     });
     expect(m.html).not.toContain("<b>Ana</b>");
@@ -209,7 +206,7 @@ describe("resendDispatchEmail", () => {
     status: "shipped" as const,
     shipment: {
       status: "dispatched" as const,
-      carrier: "Via Cargo",
+      carrier: "Vía Cargo",
       trackingNumber: "VC123",
       trackingUrl: null,
     },
@@ -222,7 +219,7 @@ describe("resendDispatchEmail", () => {
     });
     const mail = sendEmail.mock.calls[0][0];
     expect(mail.to).toBe("ana@example.com");
-    expect(mail.html).toContain("Via Cargo");
+    expect(mail.html).toContain("Vía Cargo");
     expect(mail.html).toContain("VC123");
   });
 
