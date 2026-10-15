@@ -284,7 +284,7 @@ export function shipmentDispatchedEmail(
 ): EmailContent {
   const subject = `Tu pedido ${d.orderNumber} está en camino — Hazing`;
   const link = d.trackingUrl
-    ? `<p><a href="${escapeHtml(d.trackingUrl)}" style="color:${INK}">Seguir mi envío</a></p>`
+    ? `<p>Copiá el código y pegalo en la página de seguimiento: <a href="${escapeHtml(d.trackingUrl)}" style="color:${INK}">Seguir mi envío</a></p>`
     : "";
   const html = `<div style="font-family:Georgia,serif;color:${INK}">
     <h1 style="font-weight:400;text-transform:uppercase;letter-spacing:0.08em">Hazing</h1>
@@ -293,6 +293,6 @@ export function shipmentDispatchedEmail(
     ${link}
     <p>Cualquier duda, escribinos por WhatsApp.</p>
   </div>`;
-  const text = `Hazing\n\nHola ${d.contactName}. Despachamos tu pedido ${d.orderNumber}.\nEmpresa: ${d.carrier}\nCódigo de seguimiento: ${d.trackingNumber}${d.trackingUrl ? `\nSeguir mi envío: ${d.trackingUrl}` : ""}`;
+  const text = `Hazing\n\nHola ${d.contactName}. Despachamos tu pedido ${d.orderNumber}.\nEmpresa: ${d.carrier}\nCódigo de seguimiento: ${d.trackingNumber}${d.trackingUrl ? `\nCopiá el código y pegalo en la página de seguimiento: ${d.trackingUrl}` : ""}`;
   return { subject, html, text };
 }

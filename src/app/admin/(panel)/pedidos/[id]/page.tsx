@@ -305,7 +305,6 @@ export default async function PedidoDetallePage({
                   initial={{
                     carrier: order.shipment?.carrier ?? "",
                     trackingNumber: order.shipment?.trackingNumber ?? "",
-                    trackingUrl: order.shipment?.trackingUrl ?? "",
                   }}
                 />
               </div>

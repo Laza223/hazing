@@ -4,17 +4,17 @@ import { OrderStatusRaceError } from "@/lib/admin/orders/service";
 import { sendEmail as realSendEmail } from "@/lib/email/resend";
 import { shipmentDispatchedEmail } from "@/lib/email/templates";
 import type { OrderStatus, ShipmentStatus } from "@prisma/client";
+import { CARRIERS } from "@/lib/admin/orders/carriers";
 
 /**
- * Despacho manual (ADR 0004): la dueña despacha con el courier que quiera y acá carga
- * empresa, código y link libres. Pasa el pedido a `shipped` respetando la state-machine
+ * Despacho manual (ADR 0004): la dueña despacha con una de las empresas de `CARRIERS`
+ * y carga el código. Pasa el pedido a `shipped` respetando la state-machine
  * (paid → preparing → shipped), crea/actualiza el `Shipment` y avisa a la clienta.
  */
 
 export interface DispatchInput {
   carrier: string;
   trackingNumber: string;
-  trackingUrl?: string | null;
 }
 
 export interface DispatchOrder {
@@ -58,31 +58,21 @@ export type ParsedDispatch =
   | { ok: true; carrier: string; trackingNumber: string; trackingUrl: string }
   | { ok: false; error: string };
 
-/** Normaliza y valida los campos del form. `trackingUrl` vacío = sin link. */
+/** Valida los campos del form; el link sale de la empresa elegida, nunca del form. */
 export function parseDispatchInput(raw: DispatchInput): ParsedDispatch {
-  const carrier = raw.carrier.trim();
+  const carrier = CARRIERS.find((c) => c.name === raw.carrier.trim());
   const trackingNumber = raw.trackingNumber.trim();
-  const trackingUrl = (raw.trackingUrl ?? "").trim();
-  if (!carrier) return { ok: false, error: "Ingresá la empresa de envío." };
+  if (!carrier) return { ok: false, error: "Elegí la empresa de envío." };
   if (!trackingNumber)
     return { ok: false, error: "Ingresá el código de seguimiento." };
-  if (carrier.length > 80 || trackingNumber.length > 80)
-    return { ok: false, error: "Empresa o código demasiado largos." };
-  if (trackingUrl) {
-    let isHttps = false;
-    try {
-      isHttps = new URL(trackingUrl).protocol === "https:";
-    } catch {
-      isHttps = false;
-    }
-    if (!isHttps || trackingUrl.length > 500)
-      return {
-        ok: false,
-        error:
-          "El link de seguimiento debe ser una URL que empiece con https://",
-      };
-  }
-  return { ok: true, carrier, trackingNumber, trackingUrl };
+  if (trackingNumber.length > 80)
+    return { ok: false, error: "El código es demasiado largo." };
+  return {
+    ok: true,
+    carrier: carrier.name,
+    trackingNumber,
+    trackingUrl: carrier.trackingUrl,
+  };
 }
 
 const DISPATCHABLE: OrderStatus[] = ["paid", "preparing", "shipped"];
