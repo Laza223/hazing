@@ -15,6 +15,10 @@ import {
   defaultProductDeps,
 } from "@/lib/admin/products/service";
 import { uploadProductImage } from "@/lib/admin/products/images";
+import {
+  previewPriceIncrease,
+  applyPriceIncrease,
+} from "@/lib/admin/products/bulk-price";
 
 /** El producto puede afectar la home, el listado de tienda y su propia PDP. */
 function revalidateStorefront(slug?: string) {
@@ -79,6 +83,47 @@ export async function deleteProductAction(id: string): Promise<AdminResult> {
       ok: false,
       error:
         e instanceof Error ? e.message : "No se pudo dar de baja el producto.",
+    };
+  }
+}
+
+export interface PriceIncreasePreviewResult extends AdminResult {
+  products?: number;
+  example?: { from: number; to: number } | null;
+}
+
+export async function previewPriceIncreaseAction(
+  percent: number,
+  categoryId: string | null,
+): Promise<PriceIncreasePreviewResult> {
+  await requireAdmin();
+  try {
+    const p = await previewPriceIncrease({ percent, categoryId });
+    return { ok: true, products: p.products, example: p.example };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "No se pudo calcular la suba.",
+    };
+  }
+}
+
+export async function applyPriceIncreaseAction(
+  percent: number,
+  categoryId: string | null,
+): Promise<PriceIncreasePreviewResult> {
+  await requireAdmin();
+  try {
+    const r = await applyPriceIncrease({ percent, categoryId });
+    revalidatePath("/admin/productos");
+    revalidatePath("/");
+    revalidatePath("/tienda");
+    revalidatePath("/producto/[slug]", "page");
+    return { ok: true, products: r.products };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "No se pudo subir los precios.",
     };
   }
 }

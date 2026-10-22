@@ -19,6 +19,7 @@ import { PageHeader } from "@/components/admin/page-header";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { BulkPriceDialog } from "./bulk-price-dialog";
 import {
   Table,
   TableHeader,
@@ -124,9 +125,15 @@ export default async function ProductosPage({
         title="Productos"
         subtitle="Acá ves, creás y editás todo lo que vendés."
         action={
-          <Link className={cn(buttonVariants())} href="/admin/productos/nuevo">
-            <Plus className="size-4" aria-hidden /> Nuevo producto
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <BulkPriceDialog categories={labelCategories(categories)} />
+            <Link
+              className={cn(buttonVariants())}
+              href="/admin/productos/nuevo"
+            >
+              <Plus className="size-4" aria-hidden /> Nuevo producto
+            </Link>
+          </div>
         }
       />
 

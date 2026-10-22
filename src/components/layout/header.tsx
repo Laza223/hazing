@@ -89,7 +89,8 @@ export function Header({ categories }: { categories: CategoryNode[] }) {
           <Wordmark className="h-6 w-auto text-current" />
         </Link>
 
-        <div className="flex items-center gap-5">
+        {/* gap-3 en mobile: con gap-5 la lupa queda pegada al wordmark centrado. */}
+        <div className="flex items-center gap-3 md:gap-5">
           <SearchDialog />
           {/* Solo desde md: a 375px choca con el wordmark centrado. En mobile
               "Cuenta" vive en el menú fullscreen. */}
