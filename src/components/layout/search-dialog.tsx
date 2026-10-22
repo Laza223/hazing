@@ -32,7 +32,10 @@ export function SearchDialog() {
             Nombre del producto
           </label>
           <div className="flex items-center gap-3 border-b border-ink pb-2">
-            <Search className="h-5 w-5 text-ink-3" aria-hidden="true" />
+            <Search
+              className="h-5 w-5 shrink-0 text-ink-3"
+              aria-hidden="true"
+            />
             <input
               id="header-search"
               name="q"
