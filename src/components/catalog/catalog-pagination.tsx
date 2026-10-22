@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { getPageItems } from "@/lib/catalog/pagination";
 
 export interface CatalogPaginationProps {
   page: number;
@@ -9,10 +11,15 @@ export interface CatalogPaginationProps {
   buildHref: (page: number) => string;
 }
 
+const focus =
+  "outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+const arrow =
+  "inline-flex size-11 items-center justify-center transition-colors duration-ui ease-ui";
+
 /**
- * CatalogPagination — "Anterior · 1 2 3 · Siguiente", links de TEXTO con
- * URLs reales (`?page=n`), indexables y compatibles con volver atrás. Sin
- * scroll infinito (docs/spec/06-storefront.md §3.1).
+ * CatalogPagination — "‹ 1 2 3 4 5 … 12 ›", links con URLs reales (`?page=n`),
+ * indexables y compatibles con volver atrás. Sin scroll infinito
+ * (docs/spec/06-storefront.md §3.1).
  */
 export function CatalogPagination({
   page,
@@ -21,55 +28,69 @@ export function CatalogPagination({
 }: CatalogPaginationProps) {
   if (totalPages <= 1) return null;
 
-  const pages = Array.from({ length: totalPages }, (_, index) => index + 1);
+  const items = getPageItems(page, totalPages);
 
   return (
     <nav
       aria-label="Paginación"
-      className="flex flex-wrap items-center justify-center gap-6 border-t border-line pt-8 text-sm"
+      className="flex flex-wrap items-center justify-center gap-1 border-t border-line pt-8 text-sm"
     >
       {page > 1 ? (
         <Link
           href={buildHref(page - 1)}
-          className="inline-flex min-h-11 items-center text-ink-2 outline-none transition-colors duration-ui ease-ui hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          aria-label="Página anterior"
+          className={cn(arrow, "text-ink-2 hover:text-ink", focus)}
         >
-          Anterior
+          <ChevronLeft className="size-5" aria-hidden />
         </Link>
       ) : (
-        <span aria-disabled="true" className="text-ink-4">
-          Anterior
+        <span aria-hidden="true" className={cn(arrow, "text-ink-4")}>
+          <ChevronLeft className="size-5" />
         </span>
       )}
 
       <ul className="flex items-center gap-1">
-        {pages.map((p) => (
-          <li key={p}>
-            <Link
-              href={buildHref(p)}
-              aria-current={p === page ? "page" : undefined}
-              className={cn(
-                "inline-flex min-h-11 min-w-11 items-center justify-center outline-none transition-colors duration-ui ease-ui focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-                p === page
-                  ? "text-ink underline underline-offset-4"
-                  : "text-ink-3 hover:text-ink",
-              )}
+        {items.map((item, index) =>
+          item === "gap" ? (
+            <li
+              key={`gap-${index}`}
+              aria-hidden="true"
+              className="inline-flex size-8 items-center justify-center text-ink-4 sm:size-11"
             >
-              {p}
-            </Link>
-          </li>
-        ))}
+              …
+            </li>
+          ) : (
+            <li key={item}>
+              <Link
+                href={buildHref(item)}
+                aria-label={`Página ${item}`}
+                aria-current={item === page ? "page" : undefined}
+                className={cn(
+                  "inline-flex size-9 items-center justify-center border transition-colors duration-ui ease-ui sm:size-11",
+                  focus,
+                  item === page
+                    ? "border-ink text-ink"
+                    : "border-transparent text-ink-3 hover:text-ink",
+                )}
+              >
+                {item}
+              </Link>
+            </li>
+          ),
+        )}
       </ul>
 
       {page < totalPages ? (
         <Link
           href={buildHref(page + 1)}
-          className="inline-flex min-h-11 items-center text-ink-2 outline-none transition-colors duration-ui ease-ui hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          aria-label="Página siguiente"
+          className={cn(arrow, "text-ink-2 hover:text-ink", focus)}
         >
-          Siguiente
+          <ChevronRight className="size-5" aria-hidden />
         </Link>
       ) : (
-        <span aria-disabled="true" className="text-ink-4">
-          Siguiente
+        <span aria-hidden="true" className={cn(arrow, "text-ink-4")}>
+          <ChevronRight className="size-5" />
         </span>
       )}
     </nav>
