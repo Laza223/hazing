@@ -23,9 +23,10 @@ export async function saveHomeContentAction(
     revalidatePath("/admin/home");
     return { ok: true };
   } catch (e) {
+    console.error("saveHomeContentAction", e);
     return {
       ok: false,
-      error: e instanceof Error ? e.message : "Ocurrió un error inesperado.",
+      error: "No se pudo guardar. Probá de nuevo y, si sigue, avisale a Lazar.",
     };
   }
 }
@@ -45,6 +46,7 @@ export async function uploadHomeImageAction(
     const { path } = await uploadProductImage(file, "home");
     return { ok: true, path };
   } catch (e) {
+    console.error("uploadHomeImageAction", e);
     return {
       ok: false,
       error: e instanceof Error ? e.message : "No se pudo subir la imagen.",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import Image from "next/image";
 import {
   AlertCircle,
@@ -181,6 +181,17 @@ export function HomeForm({ initial }: Props) {
   const [pending, startTransition] = useTransition();
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const statusRef = useRef<HTMLDivElement>(null);
+
+  // El botón está al final de un formulario largo: el resultado se trae a la vista.
+  useEffect(() => {
+    if (success || error) {
+      statusRef.current?.scrollIntoView({
+        block: "center",
+        behavior: "smooth",
+      });
+    }
+  }, [success, error]);
 
   const set = <K extends HomeSectionKey>(
     key: K,
@@ -236,25 +247,6 @@ export function HomeForm({ initial }: Props) {
 
   return (
     <form onSubmit={onSubmit} className="space-y-8">
-      {success && (
-        <p
-          role="status"
-          className="flex items-center gap-2 rounded-control border border-line px-4 py-3 text-sm text-ink"
-        >
-          <CheckCircle2 className="size-4 shrink-0" aria-hidden />
-          Home guardada. Ya se ve en la tienda.
-        </p>
-      )}
-      {error && (
-        <p
-          role="alert"
-          className="flex items-center gap-2 rounded-control border border-line px-4 py-3 text-sm text-ink"
-        >
-          <AlertCircle className="size-4 shrink-0" aria-hidden />
-          {error}
-        </p>
-      )}
-
       <Section
         title="Portada"
         description="Lo primero que se ve al entrar: foto grande, frase y botón."
@@ -548,6 +540,27 @@ export function HomeForm({ initial }: Props) {
           onChange={(p) => set("campaignBand", { image: p })}
         />
       </Section>
+
+      <div ref={statusRef} className="scroll-mt-24 space-y-3">
+        {success && (
+          <p
+            role="status"
+            className="flex items-center gap-2 rounded-control border border-line px-4 py-3 text-sm text-ink"
+          >
+            <CheckCircle2 className="size-4 shrink-0" aria-hidden />
+            Home guardada. Ya se ve en la tienda.
+          </p>
+        )}
+        {error && (
+          <p
+            role="alert"
+            className="flex items-center gap-2 rounded-control border border-line px-4 py-3 text-sm text-ink"
+          >
+            <AlertCircle className="size-4 shrink-0" aria-hidden />
+            {error}
+          </p>
+        )}
+      </div>
 
       <div className="flex items-center gap-4">
         <Button type="submit" disabled={pending}>

@@ -24,6 +24,7 @@ Resto:
 - `pnpm dev` — localhost:3000 · `pnpm build` + `pnpm start` — build de producción local (es el mismo build que corre Vercel; sirve para medir bundle y Lighthouse)
 - `pnpm test:watch` · `pnpm test:e2e` — Playwright E2E (`@axe-core/playwright` para a11y)
 - `pnpm db:migrate` — `prisma migrate dev` contra Supabase (lee `.env.local`; migración inicial aplicada el 2026-09-28, RLS sin políticas en todas las tablas: toda migración nueva que cree una tabla tiene que agregar su `ENABLE ROW LEVEL SECURITY`) · `pnpm db:push` · `pnpm db:studio` · `pnpm db:seed` / `db:seed:clean` — productos `demo-*` (pasan por el guard; ver `docs/spec/06-storefront.md` §4). Base local sin Docker: `prisma dev --name hazing`, no soporta conexiones concurrentes → `DATABASE_POOL_MAX=1` (ya en `.claude/launch.json`)
+- **Migraciones en prod:** el build de Vercel NO migra. Toda migración nueva se aplica en Supabase con `node --env-file=.env.local node_modules/prisma/build/index.js migrate deploy` ANTES de promover el deploy (con `migrate status` primero para ver que solo falta la nueva). Si no, la función que la usa falla en prod (pasó con `HomeContent`, 2026-11-02).
 - **CI:** GitHub Actions corre `quality` en cada push/PR a `main` (incluye el gate de three.js/lenis fuera de `.next/server`). `deploy` se agrega en Fase 10: Vercel CLI + token, atrás del gate, calcado de glamify.
 - **Guard de escritura en DB:** `scripts/prod-write-guard.ts` (copiado de glamify) — scripts mutadores exigen tipear el host por terminal interactiva.
 
