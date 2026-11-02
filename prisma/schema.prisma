@@ -455,6 +455,14 @@ model Setting {
   updatedAt             DateTime @updatedAt
 }
 
+/// Contenido editable de la home (textos, links, imágenes). Singleton `id = "default"`; el JSON
+/// se mezcla sobre los defaults de src/lib/home/content.ts, así que sin fila la home no cambia.
+model HomeContent {
+  id        String   @id @default("default")
+  content   Json
+  updatedAt DateTime @updatedAt
+}
+
 /// Contador de intentos por clave `acción:IP` en una ventana fija (rate limit de las
 /// acciones públicas: login, registro, reseñas, arrepentimiento). Ver src/lib/rate-limit.
 model RateLimit {

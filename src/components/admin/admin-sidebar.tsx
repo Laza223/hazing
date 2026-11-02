@@ -13,6 +13,7 @@ import {
   Star,
   RotateCcw,
   Settings,
+  LayoutTemplate,
   type LucideIcon,
 } from "lucide-react";
 
@@ -38,6 +39,7 @@ const ITEMS: AdminNavItem[] = [
     label: "Arrepentimientos",
     icon: RotateCcw,
   },
+  { href: "/admin/home", label: "Home", icon: LayoutTemplate },
   { href: "/admin/ajustes", label: "Ajustes", icon: Settings },
 ];
 

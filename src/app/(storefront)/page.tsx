@@ -7,69 +7,44 @@ import { CampaignBand } from "@/components/home/campaign-band";
 import { getNewestProducts } from "@/lib/catalog/queries";
 import { productImageUrl } from "@/lib/images";
 import { getEffectivePrice, isOnSale, toNumber } from "@/lib/catalog/pricing";
-import {
-  HOME_CAMPAIGN_BAND,
-  HOME_EDITORIAL,
-  HOME_STORY,
-} from "@/lib/content/copy";
+import { getHomeContent } from "@/lib/home/get-home-content";
 
 /**
  * Home: hero → nuevo → marca → lookbook → editorial → cierre.
  *
- * Todas las fotos son de campaña, en `public/images/campaign/`. "Nuevo" lee
- * los últimos productos del catálogo y muestra solo los que tienen foto: sin
- * productos con foto, la sección no aparece.
+ * Textos, links e imágenes salen de `getHomeContent()` (editable en
+ * `/admin/home`; sin edición, los defaults son la campaña original de
+ * `public/images/campaign/`). "Nuevo" lee los últimos productos del catálogo y
+ * muestra solo los que tienen foto: sin productos con foto, la sección no
+ * aparece.
  */
-const CAMPAIGN = "/images/campaign";
-
-const HERO_IMAGE_SRC = `${CAMPAIGN}/hero-desktop.avif`;
-const HERO_IMAGE_SRC_MOBILE = `${CAMPAIGN}/hero-mobile.avif`;
 
 /** Tiles de "Nuevo": una fila de 4 en desktop, dos de 2 en mobile. */
 const NEW_IN_COUNT = 4;
 /** Se piden más de los que se muestran porque se descartan los que no tienen foto. */
 const NEW_IN_FETCH = 12;
 
-const LOOKBOOK_NAMES = [
-  "Conjunto texturado chocolate",
-  "Minifalda de cuero",
-  "Cárdigan bordó con puntilla",
-  "Musculosa animal print con encaje",
-  "Top halter ciruela",
-  "Body strapless rojo",
-  "Top con volados y minifalda azul",
-] as const;
-
-const LOOKBOOK_LOOKS: LookbookLook[] = LOOKBOOK_NAMES.map(
-  (name, i): LookbookLook => {
-    const number = String(i + 1).padStart(2, "0");
-    return {
-      id: `lookbook-${number}`,
-      number,
-      name,
-      imageSrc: `${CAMPAIGN}/look-${number}.webp`,
-      imageAlt: name,
-    };
-  },
-);
-
-const EDITORIAL_IMAGES = [
-  {
-    src: `${CAMPAIGN}/editorial-01.webp`,
-    alt: "Top halter blanco con argolla dorada",
-  },
-  {
-    src: `${CAMPAIGN}/editorial-02.webp`,
-    alt: "Top animal print de tul y minifalda negra",
-  },
-] as const;
-
 // Sin ISR: el layout del storefront lee la cookie del carrito, así que todas
 // sus rutas son dinámicas y un `revalidate` acá no tendría efecto (medido en
 // `pnpm build`, docs/spec/06-storefront.md §3.9).
 
 export default async function HomePage() {
-  const newestProducts = await getNewestProducts(NEW_IN_FETCH);
+  const [content, newestProducts] = await Promise.all([
+    getHomeContent(),
+    getNewestProducts(NEW_IN_FETCH),
+  ]);
+  const { hero, newIn, story, lookbook, editorial, campaignBand } = content;
+  const url = (path: string) => productImageUrl(path) ?? "";
+  const lookbookLooks: LookbookLook[] = lookbook.looks.map((look, i) => {
+    const number = String(i + 1).padStart(2, "0");
+    return {
+      id: `lookbook-${number}`,
+      number,
+      name: look.name,
+      imageSrc: url(look.image),
+      imageAlt: look.alt,
+    };
+  });
   const newInItems: NewInItem[] = newestProducts
     .filter((product) => product.images.length > 0)
     .slice(0, NEW_IN_COUNT)
@@ -89,33 +64,48 @@ export default async function HomePage() {
 
   return (
     <>
-      <Hero imageSrc={HERO_IMAGE_SRC} imageSrcMobile={HERO_IMAGE_SRC_MOBILE} />
-      <NewIn items={newInItems} />
-      <StorySplit
-        eyebrow={HOME_STORY.eyebrow}
-        title={HOME_STORY.title}
-        body={HOME_STORY.body}
-        href="/tienda"
-        linkLabel={HOME_STORY.linkLabel}
-        imageSrc={`${CAMPAIGN}/story-01.webp`}
-        imageAlt="Top strapless con estampa y jean negro"
+      <Hero
+        eyebrow={hero.eyebrow}
+        statement={hero.statement}
+        ctaLabel={hero.ctaLabel}
+        ctaHref={hero.ctaHref}
+        imageSrc={url(hero.imageDesktop)}
+        imageSrcMobile={url(hero.imageMobile)}
       />
-      <Lookbook looks={LOOKBOOK_LOOKS} />
+      <NewIn
+        items={newInItems}
+        title={newIn.title}
+        allHref={newIn.linkHref}
+        allLabel={newIn.linkLabel}
+      />
+      <StorySplit
+        eyebrow={story.eyebrow}
+        title={story.title}
+        body={story.body}
+        href={story.href}
+        linkLabel={story.linkLabel}
+        imageSrc={url(story.image)}
+        imageAlt={story.alt}
+      />
+      <Lookbook looks={lookbookLooks} />
       <EditorialStory
-        eyebrow={HOME_EDITORIAL.eyebrow}
-        title={HOME_EDITORIAL.title}
-        body={HOME_EDITORIAL.body}
-        href="/tienda"
-        linkLabel={HOME_EDITORIAL.linkLabel}
-        images={EDITORIAL_IMAGES}
+        eyebrow={editorial.eyebrow}
+        title={editorial.title}
+        body={editorial.body}
+        href={editorial.href}
+        linkLabel={editorial.linkLabel}
+        images={[
+          { src: url(editorial.images[0].image), alt: editorial.images[0].alt },
+          { src: url(editorial.images[1].image), alt: editorial.images[1].alt },
+        ]}
       />
       <CampaignBand
-        eyebrow={HOME_CAMPAIGN_BAND.eyebrow}
-        title={HOME_CAMPAIGN_BAND.title}
-        href="/tienda"
-        linkLabel={HOME_CAMPAIGN_BAND.linkLabel}
-        imageSrc={`${CAMPAIGN}/band-01.webp`}
-        imageAlt="Musculosa blanca y pantalón animal print"
+        eyebrow={campaignBand.eyebrow}
+        title={campaignBand.title}
+        href={campaignBand.href}
+        linkLabel={campaignBand.linkLabel}
+        imageSrc={url(campaignBand.image)}
+        imageAlt={campaignBand.alt}
       />
     </>
   );

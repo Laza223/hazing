@@ -26,7 +26,10 @@ export interface UploadResult {
  * todavía no existe, Supabase devuelve un error de storage que se propaga como texto
  * legible, nunca como crash sin explicación.
  */
-export async function uploadProductImage(file: File): Promise<UploadResult> {
+export async function uploadProductImage(
+  file: File,
+  folder: "products" | "home" = "products",
+): Promise<UploadResult> {
   if (!ALLOWED_MIME.includes(file.type)) {
     throw new Error("Formato no permitido. Subí PNG, JPG, WEBP o AVIF.");
   }
@@ -35,7 +38,7 @@ export async function uploadProductImage(file: File): Promise<UploadResult> {
   }
 
   const ext = EXT_BY_MIME[file.type];
-  const path = `products/${crypto.randomUUID()}.${ext}`;
+  const path = `${folder}/${crypto.randomUUID()}.${ext}`;
 
   const supabase = createAdminClient();
   const { error } = await supabase.storage
