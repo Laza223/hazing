@@ -27,6 +27,7 @@ export interface NewInProps {
   title?: string;
   /** Link "Ver todo" a la derecha del título. */
   allHref?: string;
+  allLabel?: string;
   className?: string;
 }
 
@@ -40,6 +41,7 @@ export function NewIn({
   items,
   title = "Nuevo",
   allHref = "/tienda?orden=novedades",
+  allLabel = "Ver todo",
   className,
 }: NewInProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -64,7 +66,7 @@ export function NewIn({
           href={allHref}
           className="tracking-caps-sm inline-flex min-h-11 items-center text-xs uppercase text-ink-2 underline underline-offset-4 outline-none transition-colors duration-ui ease-ui hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
-          Ver todo
+          {allLabel}
         </Link>
       </div>
       <div
